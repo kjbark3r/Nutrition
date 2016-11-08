@@ -34,14 +34,12 @@ rm(wd_workcomp, wd_laptop)
 
 # elk locations
 locs <- read.csv("../ElkDatabase/collardata-locsonly-equalsampling.csv") %>%
-  dplyr::select(c(AnimalID, Date, Time, Lat, Long, Sex, EndDate)) %>%
-  filter(Sex == "Female") # not using males for nutrition analysis
+  dplyr::select(c(AnimalID, Date, Time, Lat, Long, Sex, EndDate)) 
 locs$Date <- as.Date(locs$Date, format = "%Y-%m-%d")
+locs$Time <- as.numeric(gsub("[[:punct:]]", "", locs$Time))
 locs$IndivYr <- ifelse(locs$Date < "2015-01-01", 
                        paste(locs$AnimalID, "-14", sep=""),
                        paste(locs$AnimalID, "-15", sep=""))  
-locs14 <- subset(locs, Date < "2015-01-01")
-locs15 <- subset(locs, Date >= "2015-01-01")
 
 # migratory behavior
 mig <- read.csv("../Migration/HRoverlap/volumeintersection.csv")
@@ -50,59 +48,93 @@ mig <- read.csv("../Migration/HRoverlap/volumeintersection.csv")
 gdm14 <- raster("../Vegetation/GDM2014.tif")
 gdm15 <- raster("../Vegetation/GDM2015.tif")
 
-
 # projection definitions
-latlong <- CRS("+init=epsg:4326") # elk locs (WGS84)
-stateplane <- gdm14@crs # rasters (NAD83(HARN) / Montana)
+latlong <- CRS("+init=epsg:4326") # elk locs - WGS84
+stateplane <- gdm14@crs # rasters - NAD83(HARN) / Montana
 
 ############################
 ####  Nutrition per HR  ####
 ############################
 
-#kernelUD() #can do for all indivs at once from spdf, then store all outlines with getverticeshr
- # i think it knows indiv based on spdf having just one extra non-locn id column
-	# tweak the below accordingly
+# 2014
+smr14 <- locs %>%
+  filter(Sex == "Female")  %>% # not using males for nutrition analysis
+  subset(between(Date, as.Date("2014-07-15"), as.Date("2014-08-31"))) %>%
+  subset(Time < 800 | Time > 1700) #remove mostly bedding locations
+xy14 <- data.frame("x" = smr14$Long, "y" = smr14$Lat)
+spdf.ll14 <- SpatialPointsDataFrame(xy14, smr14, proj4string = latlong) #spatial
+spdf14 <- spTransform(spdf.ll14, stateplane) # match projection of gdm tifs
+kuds14 <- kernelUD(spdf14[,8], h = "href", same4all = FALSE) #[,8] is IndivYr
+hrs14 <- getverticeshr(kuds14) #home range outline ploygons
+ext14 <- extract(gdm14, hrs14) #gdm in each hr
+nute14 <- as.data.frame(
+          sapply(ext14, function(x) 
+            if (!is.null(x)){
+                sum(x, na.rm = TRUE) #sum gdm per hr
+            } else NA))
+ids14 <- as.data.frame(unique(hrs14@data$id))
+nute14 <- bind_cols(ids14, nute14) #add IndivYr
+colnames(nute14) = c("IndivYr", "SumGDM")
+
+# 2015
+smr15 <- locs %>%
+  filter(Sex == "Female")  %>% # not using males for nutrition analysis
+  subset(between(Date, as.Date("2015-07-15"), as.Date("2015-08-31"))) %>%
+  subset(Time < 800 | Time > 1700) #remove mostly bedding locations
+xy15 <- data.frame("x" = smr15$Long, "y" = smr15$Lat)
+spdf.ll15 <- SpatialPointsDataFrame(xy15, smr15, proj4string = latlong) #spatial
+spdf15 <- spTransform(spdf.ll15, stateplane) # match projection of gdm tifs
+kuds15 <- kernelUD(spdf15[,8], h = "href", same4all = FALSE) #[,8] is IndivYr
+hrs15 <- getverticeshr(kuds15) #home range outline ploygons
+ext15 <- extract(gdm15, hrs15) #gdm in each hr
+nute15 <- as.data.frame(
+          sapply(ext15, function(x) 
+            if (!is.null(x)){
+                sum(x, na.rm = TRUE) #sum gdm per hr
+            } else NA))
+ids15 <- as.data.frame(unique(hrs15@data$id))
+nute15 <- bind_cols(ids15, nute15) #add IndivYr
+colnames(nute15) = c("IndivYr", "SumGDM")
+
+nute <- bind_rows(nute14, nute15)
+write.csv(nute, file = "availnute.csv", row.names=FALSE)
+
+###################################
+####  Nutrition and Migration  ####
+###################################
+
+mignute <- mig %>%
+  select(-FallVI) %>%
+  right_join(nute, by = "IndivYr")
+write.csv(mignute, file = "mignute.csv", row.names=FALSE)
+
+plot(SumGDM ~ SprVI, data=mignute)
+scatter.smooth(mignute$SumGDM ~ mignute$SprVI)
 
 
-hr.gdm <- data.frame(matrix(ncol = 3, # df to store results
-                      nrow = length(unique(locs$IndivYr))*nrow(rdat)))
-colnames(hr.gdm) <- c("IndivYr", "GDM", "HRarea")
 
-indivlist <- unique(locs$IndivYr)
+############################################################################
+## CUT CODE ####
+# to tweak later, store somewhere else, or delete entirely #
+############################################################################
 
-for(i in 1:nrow(indivlist)) { 
-  elk = indivlist[i]
-  # create summer home range
-  sub <- subset(locs, IndivYr == elk) %>% # pull indiv locs
-    dplyr::select(c(IndivYr, Lat, Long)) # only use pertinent info
-  xy <- data.frame("x" = sub$Long, "y" = sub$Lat) # make it spatial
-  nad <- spTransform(SpatialPointsDataFrame(xy, sub, 
-                       proj4string = latlong), stateplane) # match raster proj
-  kud <- kernelUD(nad[,1]) # create kde for each indiv
-  hr <- getverticeshr(kud) # create polygon outlines from kdes
-  hr$id <- as.character(hr$id) # to populate final df properly
-  # read in associated gdm info
-  dat <- gsub(".*/", "", sub$date) # extract year from date
-  gdm <- ifelse(dat == 2014, gdm2014, gdm2015)
-  # calculate total gdm per indiv home range
-  hr.tmp <- data.frame(matrix(ncol = 4, # store results from each loop
-                              nrow = length(indivlist)))
-  colnames(hr.tmp) <- c("IndivYr", "NDVI", "HRarea", "TimePd")
-  for(j in 1:length(indivlist)) {
-    indivyr <- indivlist[j] 
-    sub <- subset(hr, id == indivyr) # subset individual home range polygon
-    if(nrow(sub) < 1) { # ignore null polygons (if no locs in timestep)
-      next
-    } else {
-      tmp <- extract(ndvi, sub, weights=TRUE, fun=sum) # weighted avg
-    hr.tmp[j,1] <- sub$id
-    hr.tmp[j,2] <- tmp
-    hr.tmp[j,3] <- sub$area
-    hr.tmp[j,4] <- date}
-  }
-  hr.gdm <- bind_rows(hr.tmp, hr.ndvi) # add results to final df
-}
+#works, but can't figure out how to subset hrs by year later
+smr <- locs %>%
+  filter(Sex == "Female")  %>% # not using males for nutrition analysis
+  subset(between(Date, as.Date("2014-07-15"), as.Date("2014-08-31")) #summer 
+        |between(Date, as.Date("2015-07-15"), as.Date("2015-08-31"))) %>%
+  subset(Time < 800 | Time > 1700) #remove mostly bedding locations
+xy <- data.frame("x" = smr$Long, "y" = smr$Lat)
+spdf.ll <- SpatialPointsDataFrame(xy, smr, proj4string = latlong) #spatial
+spdf <- spTransform(spdf.ll, stateplane) # match projection of gdm tifs
+kuds <- kernelUD(spdf[,8], h = "href", same4all = FALSE) #[,8] is IndivYr
+hrs <- getverticeshr(kuds) #home range outline ploygons
 
-hr.gdm <- hr.gdm[complete.cases(hr.gdm),] # rm na rows (no locs in timestep)
-
-write.csv(hr.gdm, file = "hr-gdm.csv", row.names = FALSE)
+# extracting from >1 polygon
+test <- extract(gdm14, hrs, method = "simple", small = TRUE, fun = sum)
+  #only worked for 17 rows; all rest NA
+    #maybe need to add na.rm argument? gets weird with sum fcn.
+  #also doesn't retain IndivYr
+    #df=TRUE could help?
+#NOTE sp = TRUE will add vals back to hrs df, sweet
+  #do this after you get this shit to actually work...
