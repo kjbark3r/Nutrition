@@ -11,6 +11,7 @@
 
 # PACKAGES #
 
+library(ggplot2)
 library(adehabitatHR)
 library(raster)
 library(dplyr)
@@ -30,6 +31,10 @@ if (file.exists(wd_workcomp)) {
 rm(wd_workcomp, wd_laptop)
 
 
+############################
+####  Nutrition per HR  ####
+############################
+
 # DATA #
 
 # elk locations
@@ -41,9 +46,6 @@ locs$IndivYr <- ifelse(locs$Date < "2015-01-01",
                        paste(locs$AnimalID, "-14", sep=""),
                        paste(locs$AnimalID, "-15", sep=""))  
 
-# migratory behavior
-mig <- read.csv("../Migration/HRoverlap/volumeintersection.csv")
-
 # gdm rasters
 gdm14 <- raster("../Vegetation/GDM2014.tif")
 gdm15 <- raster("../Vegetation/GDM2015.tif")
@@ -52,9 +54,8 @@ gdm15 <- raster("../Vegetation/GDM2015.tif")
 latlong <- CRS("+init=epsg:4326") # elk locs - WGS84
 stateplane <- gdm14@crs # rasters - NAD83(HARN) / Montana
 
-############################
-####  Nutrition per HR  ####
-############################
+
+# CALCULATIONS #
 
 # 2014
 smr14 <- locs %>%
@@ -103,9 +104,34 @@ write.csv(nute, file = "availnute.csv", row.names=FALSE)
 ####  Nutrition and Migration  ####
 ###################################
 
+# data
+mig <- read.csv("../Survival/migstatus.csv")
+nute <- read.csv("availnute.csv")
+
 mignute <- mig %>%
   right_join(nute, by = "IndivYr")
 write.csv(mignute, file = "mignute.csv", row.names=FALSE)
+
+scatter.smooth(mignute$SumGDM ~ I(mignute$VI95*-1))
+
+mignute$MigStatus <- factor(mignute$MigStatus,
+                            levels = c("Resident",
+                                       "Intermediate",
+                                       "Migrant"),
+                            ordered = TRUE)
+
+par(mfrow=c(2,1))
+scatter.smooth(mignute$SumGDM ~ I(mignute$VI95*-1))
+ggplot(data = mignute, 
+       aes(x = MigStatus, y = SumGDM)) +
+       geom_boxplot(aes(fill = SumGDM))
+  
+  
+
+#ggplot(data=dat.GDM, aes(x=class_name, y=GDM, color=GDM)) +
+#  geom_jitter(width=0.3, height=0.1, alpha=0.5) +
+#  theme(axis.text.x=element_text(size=12, angle=55, hjust=1, vjust = 1)) +
+#  scale_color_gradientn(colors=pal)
 
 plot(SumGDM ~ SprVI, data=mignute)
 scatter.smooth(mignute$SumGDM ~ mignute$SprVI)
