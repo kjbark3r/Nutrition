@@ -19,7 +19,7 @@ library(dplyr)
 # WORKING DIRECTORY #
 
 wd_workcomp <- "C:\\Users\\kristin.barker\\Documents\\GitHub\\Nutrition"
-wd_laptop <- "C:\\Users\\kjbark3r\\Documents\\UMT\\Thesis\\Migration_Consequences\\Analyses\\Nutrition"
+wd_laptop <- "C:\\Users\\kjbark3r\\Documents\\GitHub\\Nutrition"
 if (file.exists(wd_workcomp)) {
   setwd(wd_workcomp)
   wd <- wd_workcomp
@@ -104,7 +104,6 @@ write.csv(nute, file = "availnute.csv", row.names=FALSE)
 ###################################
 
 mignute <- mig %>%
-  select(-FallVI) %>%
   right_join(nute, by = "IndivYr")
 write.csv(mignute, file = "mignute.csv", row.names=FALSE)
 
