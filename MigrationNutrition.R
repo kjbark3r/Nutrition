@@ -119,7 +119,9 @@ write.csv(mignute, file = "mignute.csv", row.names=FALSE)
 
 # PLOTS #
 
-scatter.smooth(mignute$SumGDM ~ I(mignute$VI95*-1))
+scatter.smooth(mignute$SumGDM ~ I(mignute$VI95*-1),
+               xlab = "Strength of Migratory Bahavior",
+               ylab = "Available Nutrition")
 
 ggplot(data = mignute, 
        aes(x = MigStatus, y = SumGDM)) +
@@ -133,10 +135,17 @@ nut.mod <- lm(SumGDM ~ MigStatus, data = mignute)
 summary(nut.mod)
 anova(nut.mod)
 
+# in progress...
+
 ############################################################################
 ## CUT CODE ####
 # to tweak later, store somewhere else, or delete entirely #
 ############################################################################
+
+#to make fake pretty  map for WILD180 talk
+loggdm14 <- raster("../Vegetation/pred2014.tif")
+plot(loggdm14)
+plot(hrs14, add = TRUE)
 
 #works, but can't figure out how to subset hrs by year later
 smr <- locs %>%
@@ -156,5 +165,3 @@ test <- extract(gdm14, hrs, method = "simple", small = TRUE, fun = sum)
     #maybe need to add na.rm argument? gets weird with sum fcn.
   #also doesn't retain IndivYr
     #df=TRUE could help?
-#NOTE sp = TRUE will add vals back to hrs df, sweet
-  #do this after you get this shit to actually work...
