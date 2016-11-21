@@ -65,17 +65,16 @@ smr14 <- locs %>%
 xy14 <- data.frame("x" = smr14$Long, "y" = smr14$Lat)
 spdf.ll14 <- SpatialPointsDataFrame(xy14, smr14, proj4string = latlong) #spatial
 spdf14 <- spTransform(spdf.ll14, stateplane) # match projection of gdm tifs
-kuds14 <- kernelUD(spdf14[,8], h = "href", same4all = FALSE) #[,8] is IndivYr
-hrs14 <- getverticeshr(kuds14) #home range outline ploygons
-ext14 <- extract(gdm14, hrs14) #gdm in each hr
-nute14 <- as.data.frame(
-          sapply(ext14, function(x) 
-            if (!is.null(x)){
-                sum(x, na.rm = TRUE) #sum gdm per hr
-            } else NA))
-ids14 <- as.data.frame(unique(hrs14@data$id))
-nute14 <- bind_cols(ids14, nute14) #add IndivYr
-colnames(nute14) = c("IndivYr", "SumGDM")
+ext14 <- as.data.frame(extract(gdm14, spdf14)) #gdm from each foraging location
+colnames(ext14) <- "GDM"
+ext14 <- cbind(smr14, ext14) #combine locations with extracted gdm data
+
+nute14 <- ext14 %>%
+  group_by(IndivYr, Date) %>%
+  summarise(AvgGDM14 = mean(GDM, na.rm=T)) %>%
+  ungroup() %>%
+  group_by(IndivYr) %>%
+  summarise(AvgGDM = mean(AvgGDM14, na.rm=T))
 
 # 2015
 smr15 <- locs %>%
@@ -85,20 +84,19 @@ smr15 <- locs %>%
 xy15 <- data.frame("x" = smr15$Long, "y" = smr15$Lat)
 spdf.ll15 <- SpatialPointsDataFrame(xy15, smr15, proj4string = latlong) #spatial
 spdf15 <- spTransform(spdf.ll15, stateplane) # match projection of gdm tifs
-kuds15 <- kernelUD(spdf15[,8], h = "href", same4all = FALSE) #[,8] is IndivYr
-hrs15 <- getverticeshr(kuds15) #home range outline ploygons
-ext15 <- extract(gdm15, hrs15) #gdm in each hr
-nute15 <- as.data.frame(
-          sapply(ext15, function(x) 
-            if (!is.null(x)){
-                sum(x, na.rm = TRUE) #sum gdm per hr
-            } else NA))
-ids15 <- as.data.frame(unique(hrs15@data$id))
-nute15 <- bind_cols(ids15, nute15) #add IndivYr
-colnames(nute15) = c("IndivYr", "SumGDM")
+ext15 <- as.data.frame(extract(gdm15, spdf15)) #gdm from each foraging location
+colnames(ext15) <- "GDM"
+ext15 <- cbind(smr15, ext15) #combine locations with extracted gdm data
 
-nute <- bind_rows(nute14, nute15)
-write.csv(nute, file = "availnute.csv", row.names=FALSE)
+nute15 <- ext15 %>%
+  group_by(IndivYr, Date) %>%
+  summarise(AvgGDM15 = mean(GDM, na.rm=T)) %>%
+  ungroup() %>%
+  group_by(IndivYr) %>%
+  summarise(AvgGDM = mean(AvgGDM15, na.rm=T))
+
+nute <- rbind(nute14, nute15)
+write.csv(nute, file = "avg-daily-gdm.csv", row.names=FALSE)
 
 ###################################
 ####  Nutrition and Migration  ####
@@ -106,8 +104,8 @@ write.csv(nute, file = "availnute.csv", row.names=FALSE)
 
 # DATA #
 
-mig <- read.csv("../Survival/migstatus.csv")
-nute <- read.csv("availnute.csv")
+mig <- read.csv("../Migration/HRoverlap/migstatus.csv")
+nute <- read.csv("avg-daily-gdm.csv")
 mignute <- mig %>%
   right_join(nute, by = "IndivYr") %>%
   transform(MigStatus = factor(MigStatus,
@@ -124,8 +122,8 @@ scatter.smooth(mignute$SumGDM ~ I(mignute$VI95*-1),
                ylab = "Available Nutrition")
 
 ggplot(data = mignute, 
-       aes(x = MigStatus, y = SumGDM)) +
-       geom_boxplot(aes(fill = SumGDM))
+       aes(x = MigStatus, y = AvgGDM)) +
+       geom_boxplot(aes(fill = AvgGDM))
   
 # STATS #
 
