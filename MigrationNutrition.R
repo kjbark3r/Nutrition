@@ -1,5 +1,6 @@
 ###########################################################
 # NUTRITIONAL CONSEQUENCES OF VARYING MIGRATORY BEHAVIORS #
+#                -DATA FILE CREATION-                     #
 #                    KRISTIN BARKER                       #
 #                       NOV 2016                          #
 ###########################################################
@@ -11,6 +12,7 @@
 
 # PACKAGES #
 
+library(RODBC)
 library(ggplot2)
 library(adehabitatHR)
 library(raster)
@@ -28,12 +30,41 @@ if (file.exists(wd_workcomp)) {
     setwd(wd_laptop)
     wd <- wd_laptop
 }
+
+######################################
+####  Body condition & Pregnancy  ####
+######################################
+
+# DATABASE CONNECTION #
+
+if (file.exists(wd_workcomp)) {
+  channel <- odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};
+                                dbq=C:/Users/kristin.barker/Documents/NSERP/Databases and Mort Reports/SapphireElkProject_ElkDatabase.accdb")
+  } else {
+      channel <- odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};
+                                    dbq=C:/Users/kjbark3r/Documents/NSERP/Databases/SapphireElkProject_ElkDatabase.accdb")
+    }
 rm(wd_workcomp, wd_laptop)
 
+# DATA #
 
-############################
-####  Nutrition per HR  ####
-############################
+id <- sqlQuery(channel, paste("select AnimalID, LabID
+                               from AnimalInfo"))
+fat <- sqlQuery(channel, paste("select LabID, RUMP, MAXFAT, Chest, girth, LactStatus
+                               from BCSdataSapphires"))
+preg <- sqlQuery(channel, paste("select LabID, PSPB, Age
+                               from PregnancyData"))
+bod <- fat %>%
+  left_join(id, by = "LabID") %>%
+  left_join(preg, by = "LabID") %>%
+  select(c(AnimalID, Age, MAXFAT, RUMP, PSPB, Chest, girth, LactStatus))
+
+write.csv(bod, file = "elk-condition.csv", row.names=F)
+
+
+#############################
+####  Nutrition Per Day  ####
+#############################
 
 # DATA #
 
@@ -98,42 +129,21 @@ nute15 <- ext15 %>%
 nute <- rbind(nute14, nute15)
 write.csv(nute, file = "avg-daily-gdm.csv", row.names=FALSE)
 
-###################################
-####  Nutrition and Migration  ####
-###################################
+#############################################
+####  Nutrition, Migration, & Condition  ####
+#############################################
 
 # DATA #
 
 mig <- read.csv("../Migration/HRoverlap/migstatus.csv")
-nute <- read.csv("avg-daily-gdm.csv")
-mignute <- mig %>%
+nute <- read.csv("avg-daily-gdm.csv") # skip if code run in full
+bod <- read.csv("elk-condition.csv") # skip if code run in full
+
+mignutebod <- mig %>%
   right_join(nute, by = "IndivYr") %>%
-  transform(MigStatus = factor(MigStatus,
-                        levels = c("Resident",
-                                   "Intermediate",
-                                   "Migrant"),
-                            ordered = TRUE))
-write.csv(mignute, file = "mignute.csv", row.names=FALSE)
+  right_join(bod, by = "AnimalID")
 
-# PLOTS #
-
-scatter.smooth(mignute$SumGDM ~ I(mignute$VI95*-1),
-               xlab = "Strength of Migratory Bahavior",
-               ylab = "Available Nutrition")
-
-ggplot(data = mignute, 
-       aes(x = MigStatus, y = AvgGDM)) +
-       geom_boxplot(aes(fill = AvgGDM))
-  
-# STATS #
-
-hist(mignute$SumGDM) # normal enough i think
-
-nut.mod <- lm(SumGDM ~ MigStatus, data = mignute)
-summary(nut.mod)
-anova(nut.mod)
-
-# in progress...
+write.csv(mignutebod, file = "mig-nute-cndtn.csv", row.names=F)
 
 ############################################################################
 ## CUT CODE ####
