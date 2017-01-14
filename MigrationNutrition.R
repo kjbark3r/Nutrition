@@ -2,7 +2,7 @@
 # NUTRITIONAL CONSEQUENCES OF VARYING MIGRATORY BEHAVIORS #
 #                -DATA FILE CREATION-                     #
 #                    KRISTIN BARKER                       #
-#                       NOV 2016                          #
+#                 NOV 2016 / JAN 2017                     #
 ###########################################################
 
 #################
@@ -62,28 +62,28 @@ bod <- fat %>%
 write.csv(bod, file = "elk-condition.csv", row.names=F)
 
 
-#############################
-####  Nutrition Per Day  ####
-#############################
+#####################################
+####  Digestible Energy Per Day  ####
+#####################################
 
 # DATA #
 
 # elk locations
 locs <- read.csv("../ElkDatabase/collardata-locsonly-equalsampling.csv") %>%
-  dplyr::select(c(AnimalID, Date, Time, Lat, Long, Sex, EndDate)) 
+  dplyr::select(c(AnimalID, Date, Time, Lat, Long, Sex)) 
 locs$Date <- as.Date(locs$Date, format = "%Y-%m-%d")
 locs$Time <- as.numeric(gsub("[[:punct:]]", "", locs$Time))
 locs$IndivYr <- ifelse(locs$Date < "2015-01-01", 
                        paste(locs$AnimalID, "-14", sep=""),
                        paste(locs$AnimalID, "-15", sep=""))  
 
-# gdm rasters
-gdm14 <- raster("../Vegetation/GDM2014.tif")
-gdm15 <- raster("../Vegetation/GDM2015.tif")
+# predicted de rasters (from Vegetation/de_model.R)
+de14 <- raster("../Vegetation/DE2014.tif")
+de15 <- raster("../Vegetation/DE2015.tif")
 
 # projection definitions
-latlong <- CRS("+init=epsg:4326") # elk locs - WGS84
-stateplane <- gdm14@crs # rasters - NAD83(HARN) / Montana
+#latlong <- CRS("+init=epsg:4326") # elk locs - WGS84
+#stateplane <- gdm14@crs # rasters - NAD83(HARN) / Montana
 
 
 # CALCULATIONS #
@@ -91,26 +91,26 @@ stateplane <- gdm14@crs # rasters - NAD83(HARN) / Montana
 # 2014
 smr14 <- locs %>%
   filter(Sex == "Female")  %>% # not using males for nutrition analysis
-  subset(between(Date, as.Date("2014-07-15"), as.Date("2014-08-31"))) %>%
-  subset(Time < 800 | Time > 1700) #remove mostly bedding locations
+  subset(between(Date, as.Date("2014-07-01"), as.Date("2014-08-31"))) %>%
+  subset(Time < 800 | Time > 1700) #remove common bedding times
 xy14 <- data.frame("x" = smr14$Long, "y" = smr14$Lat)
 spdf.ll14 <- SpatialPointsDataFrame(xy14, smr14, proj4string = latlong) #spatial
-spdf14 <- spTransform(spdf.ll14, stateplane) # match projection of gdm tifs
-ext14 <- as.data.frame(extract(gdm14, spdf14)) #gdm from each foraging location
-colnames(ext14) <- "GDM"
+#spdf14 <- spTransform(spdf.ll14, stateplane) # match projection of gdm tifs
+ext14 <- as.data.frame(extract(de14, spdf.ll14)) #gdm from each foraging location
+colnames(ext14) <- "DE"
 ext14 <- cbind(smr14, ext14) #combine locations with extracted gdm data
 
 nute14 <- ext14 %>%
   group_by(IndivYr, Date) %>%
-  summarise(AvgGDM14 = mean(GDM, na.rm=T)) %>%
+  summarise(AvgDE14 = mean(DE, na.rm=T)) %>%
   ungroup() %>%
   group_by(IndivYr) %>%
-  summarise(AvgGDM = mean(AvgGDM14, na.rm=T))
+  summarise(AvgDE = mean(AvgDE14, na.rm=T))
 
 # 2015
 smr15 <- locs %>%
   filter(Sex == "Female")  %>% # not using males for nutrition analysis
-  subset(between(Date, as.Date("2015-07-15"), as.Date("2015-08-31"))) %>%
+  subset(between(Date, as.Date("2015-07-01"), as.Date("2015-08-31"))) %>%
   subset(Time < 800 | Time > 1700) #remove mostly bedding locations
 xy15 <- data.frame("x" = smr15$Long, "y" = smr15$Lat)
 spdf.ll15 <- SpatialPointsDataFrame(xy15, smr15, proj4string = latlong) #spatial
