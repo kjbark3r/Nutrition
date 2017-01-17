@@ -32,7 +32,7 @@ if (file.exists(wd_workcomp)) {
 }
 
 ######################################
-####  Body condition & Pregnancy  ####
+####  Body Condition & Pregnancy  ####
 ######################################
 
 # DATABASE CONNECTION #
@@ -62,9 +62,42 @@ bod <- fat %>%
 write.csv(bod, file = "elk-condition.csv", row.names=F)
 
 
+##############################
+####  Migratory Behavior  ####
+##############################
+
+
+# DATA #
+
+vi95 <- read.csv("../Migration/HRoverlap/volumeintersection.csv")
+vi50 <- read.csv("../Migration/HRoverlap/volumeintersection50.csv")
+mig <- vi95 %>%
+  rename(VI95 = SprVI) %>%
+  select(-c(AnimalID, Sex)) %>% 
+  left_join(vi50, by = "IndivYr") %>%
+  rename(VI50 = SprVI) %>%
+  select(IndivYr, AnimalID, VI95, VI50) 
+
+
+# CLASSIFICATION #
+
+## discretize behavior using volume intersection of winter/summer KDEs
+  # resident is any indiv whose CORES (50% UD) overlap between seasons
+  # migrant is any indiv whose HRs (95% UD) never overlap
+  # intermediate is everyone else
+
+mig <- transform(mig, 
+       MigStatus = ifelse(VI50 > 0, "Resident",
+                   ifelse(VI95 == 0, "Migrant",
+                          "Intermediate")))
+
+write.csv(mig, file = "migstatus.csv", row.names=FALSE)
+
+
 #####################################
 ####  Digestible Energy Per Day  ####
 #####################################
+
 
 # DATA #
 
@@ -77,13 +110,13 @@ locs$IndivYr <- ifelse(locs$Date < "2015-01-01",
                        paste(locs$AnimalID, "-14", sep=""),
                        paste(locs$AnimalID, "-15", sep=""))  
 
+
 # predicted de rasters (from Vegetation/de_model.R)
 de14 <- raster("../Vegetation/DE2014.tif")
 de15 <- raster("../Vegetation/DE2015.tif")
 
 # projection definitions
-#latlong <- CRS("+init=epsg:4326") # elk locs - WGS84
-#stateplane <- gdm14@crs # rasters - NAD83(HARN) / Montana
+latlong <- CRS("+init=epsg:4326") # WGS84
 
 
 # CALCULATIONS #
@@ -92,84 +125,75 @@ de15 <- raster("../Vegetation/DE2015.tif")
 smr14 <- locs %>%
   filter(Sex == "Female")  %>% # not using males for nutrition analysis
   subset(between(Date, as.Date("2014-07-01"), as.Date("2014-08-31"))) %>%
-  subset(Time < 800 | Time > 1700) #remove common bedding times
-xy14 <- data.frame("x" = smr14$Long, "y" = smr14$Lat)
+  subset(Time <= 800 | Time >= 1800) #remove common bedding times
+xy14 <- data.frame("x" = smr14$Long, "y" = smr14$Lat) # pull coords
 spdf.ll14 <- SpatialPointsDataFrame(xy14, smr14, proj4string = latlong) #spatial
-#spdf14 <- spTransform(spdf.ll14, stateplane) # match projection of gdm tifs
-ext14 <- as.data.frame(extract(de14, spdf.ll14)) #gdm from each foraging location
+spdf14 <- spTransform(spdf.ll14, de14@crs) # match projection of de tifs
+ext14 <- as.data.frame(extract(de14, spdf.ll14)) #de from each foraging location
 colnames(ext14) <- "DE"
-ext14 <- cbind(smr14, ext14) #combine locations with extracted gdm data
+ext14 <- cbind(smr14, ext14) #combine locations with extracted de data
 
 nute14 <- ext14 %>%
   group_by(IndivYr, Date) %>%
-  summarise(AvgDE14 = mean(DE, na.rm=T)) %>%
-  ungroup() %>%
-  group_by(IndivYr) %>%
-  summarise(AvgDE = mean(AvgDE14, na.rm=T))
+  summarise(AvgDE = mean(DE, na.rm=T)) %>%
+  ungroup()
 
 # 2015
 smr15 <- locs %>%
   filter(Sex == "Female")  %>% # not using males for nutrition analysis
   subset(between(Date, as.Date("2015-07-01"), as.Date("2015-08-31"))) %>%
-  subset(Time < 800 | Time > 1700) #remove mostly bedding locations
+  subset(Time <= 800 | Time >= 1800) #remove mostly bedding locations
 xy15 <- data.frame("x" = smr15$Long, "y" = smr15$Lat)
 spdf.ll15 <- SpatialPointsDataFrame(xy15, smr15, proj4string = latlong) #spatial
-spdf15 <- spTransform(spdf.ll15, stateplane) # match projection of gdm tifs
-ext15 <- as.data.frame(extract(gdm15, spdf15)) #gdm from each foraging location
-colnames(ext15) <- "GDM"
-ext15 <- cbind(smr15, ext15) #combine locations with extracted gdm data
+spdf15 <- spTransform(spdf.ll15, de15@crs) # match projection of de tifs
+ext15 <- as.data.frame(extract(de15, spdf15)) #de from each foraging location
+colnames(ext15) <- "DE"
+ext15 <- cbind(smr15, ext15) #combine locations with extracted de data
 
 nute15 <- ext15 %>%
   group_by(IndivYr, Date) %>%
-  summarise(AvgGDM15 = mean(GDM, na.rm=T)) %>%
-  ungroup() %>%
-  group_by(IndivYr) %>%
-  summarise(AvgGDM = mean(AvgGDM15, na.rm=T))
+  summarise(AvgDE = mean(DE, na.rm=T)) %>%
+  ungroup() 
+
+
+# COMBINE YEARS AND ADD NUTRITION CLASSIFICATION INFO #
 
 nute <- rbind(nute14, nute15)
-write.csv(nute, file = "avg-daily-gdm.csv", row.names=FALSE)
+nute$DEclass <- ifelse(nute$AvgDE >= 2.9, "Excellent", #Cook FQ definitions
+                ifelse(nute$AvgDE >= 2.75 & nute$AvgDE < 2.9, "Good",
+                ifelse(nute$AvgDE > 2.40 & nute$AvgDE < 2.75, "Marginal",
+                       "Poor")))
+write.csv(nute, file = "avg-daily-de.csv", row.names=FALSE)
+
+nutedays <- nute %>%
+  group_by(IndivYr) %>%
+  summarise(nExc = length(which(DEclass == "Excellent")),
+            nGood = length(which(DEclass == "Good")),
+            nMarg = length(which(DEclass == "Marginal")),
+            nPoor = length(which(DEclass == "Poor"))) %>%
+    ungroup()
+write.csv(nutedays, file = "nClass-daily-de.csv", row.names=FALSE)
 
 #############################################
 ####  Nutrition, Migration, & Condition  ####
 #############################################
 
-# DATA #
+# data csvs from above
+#mig <- read.csv("migstatus.csv") 
+#nute <- read.csv("avg-daily-de.csv") 
+#nutedays <- read.csv("nClass-daily-de.csv")
+#bod <- read.csv("elk-condition.csv") 
 
-mig <- read.csv("../Migration/HRoverlap/migstatus.csv")
-nute <- read.csv("avg-daily-gdm.csv") # skip if code run in full
-bod <- read.csv("elk-condition.csv") # skip if code run in full
-
+# nutrition as average daily DE exposure
 mignutebod <- mig %>%
   right_join(nute, by = "IndivYr") %>%
   right_join(bod, by = "AnimalID")
+write.csv(mignutebod, file = "mig-avgDE.csv", row.names=F)
 
-write.csv(mignutebod, file = "mig-nute-cndtn.csv", row.names=F)
-
-############################################################################
-## CUT CODE ####
-# to tweak later, store somewhere else, or delete entirely #
-############################################################################
-
-#to make fake pretty  map for WILD180 talk
-loggdm14 <- raster("../Vegetation/pred2014.tif")
-plot(loggdm14)
-plot(hrs14, add = TRUE)
-
-#works, but can't figure out how to subset hrs by year later
-smr <- locs %>%
-  filter(Sex == "Female")  %>% # not using males for nutrition analysis
-  subset(between(Date, as.Date("2014-07-15"), as.Date("2014-08-31")) #summer 
-        |between(Date, as.Date("2015-07-15"), as.Date("2015-08-31"))) %>%
-  subset(Time < 800 | Time > 1700) #remove mostly bedding locations
-xy <- data.frame("x" = smr$Long, "y" = smr$Lat)
-spdf.ll <- SpatialPointsDataFrame(xy, smr, proj4string = latlong) #spatial
-spdf <- spTransform(spdf.ll, stateplane) # match projection of gdm tifs
-kuds <- kernelUD(spdf[,8], h = "href", same4all = FALSE) #[,8] is IndivYr
-hrs <- getverticeshr(kuds) #home range outline ploygons
-
-# extracting from >1 polygon
-test <- extract(gdm14, hrs, method = "simple", small = TRUE, fun = sum)
-  #only worked for 17 rows; all rest NA
-    #maybe need to add na.rm argument? gets weird with sum fcn.
-  #also doesn't retain IndivYr
-    #df=TRUE could help?
+# nutrition as number of days with each level of DE
+bod$AnimalID <- as.character(bod$AnimalID) #otherwise won't join
+mignutebod2 <- nutedays %>%
+  right_join(mig, by = "IndivYr") %>%
+  mutate(AnimalID = sub("\\-.*$",  "", IndivYr)) %>%
+  right_join(bod, by = "AnimalID")
+write.csv(mignutebod2, file = "mig-ndaysDE.csv", row.names=F)
