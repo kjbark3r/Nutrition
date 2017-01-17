@@ -27,3 +27,10 @@ test <- extract(gdm14, hrs, method = "simple", small = TRUE, fun = sum)
     #maybe need to add na.rm argument? gets weird with sum fcn.
   #also doesn't retain IndivYr
     #df=TRUE could help?
+
+#total shitshow of a graph, but code is usable
+# shows avgDE for each indiv each day, color-coded by MigStatus
+ggplot(mignute.avg, 
+       aes(DOY, AvgDE, colour = MigStatus)) +
+       geom_line() +
+       geom_point()

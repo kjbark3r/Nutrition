@@ -5,6 +5,7 @@
 #                 NOV 2016 / JAN 2017                     #
 ###########################################################
 
+
 #################
 ####  Setup  ####
 #################
@@ -31,9 +32,11 @@ if (file.exists(wd_workcomp)) {
     wd <- wd_laptop
 }
 
+
 ######################################
 ####  Body Condition & Pregnancy  ####
 ######################################
+
 
 # DATABASE CONNECTION #
 
@@ -46,20 +49,19 @@ if (file.exists(wd_workcomp)) {
     }
 rm(wd_workcomp, wd_laptop)
 
+
 # DATA #
 
 id <- sqlQuery(channel, paste("select AnimalID, LabID
                                from AnimalInfo"))
-fat <- sqlQuery(channel, paste("select LabID, RUMP, MAXFAT, Chest, girth, LactStatus
-                               from BCSdataSapphires"))
-preg <- sqlQuery(channel, paste("select LabID, PSPB, Age
-                               from PregnancyData"))
-bod <- fat %>%
-  left_join(id, by = "LabID") %>%
-  left_join(preg, by = "LabID") %>%
-  select(c(AnimalID, Age, MAXFAT, RUMP, PSPB, Chest, girth, LactStatus))
+ifbf <- read.csv("ifbf.csv") %>%
+  rename(LabID = SampleID)
 
-write.csv(bod, file = "elk-condition.csv", row.names=F)
+bod <- ifbf %>%
+  left_join(id, by = "LabID") %>%
+  select(c(AnimalID, IFBF, preg_pspb, LactStatus, girthmass, adjmass, Age))
+
+write.csv(bod, file = "bodycondition.csv", row.names=F)
 
 
 ##############################
@@ -110,12 +112,11 @@ locs$IndivYr <- ifelse(locs$Date < "2015-01-01",
                        paste(locs$AnimalID, "-14", sep=""),
                        paste(locs$AnimalID, "-15", sep=""))  
 
-
 # predicted de rasters (from Vegetation/de_model.R)
 de14 <- raster("../Vegetation/DE2014.tif")
 de15 <- raster("../Vegetation/DE2015.tif")
 
-# projection definitions
+# projection definition
 latlong <- CRS("+init=epsg:4326") # WGS84
 
 
@@ -125,11 +126,11 @@ latlong <- CRS("+init=epsg:4326") # WGS84
 smr14 <- locs %>%
   filter(Sex == "Female")  %>% # not using males for nutrition analysis
   subset(between(Date, as.Date("2014-07-01"), as.Date("2014-08-31"))) %>%
-  subset(Time <= 800 | Time >= 1800) #remove common bedding times
+  subset(Time <= 800 | Time >= 2000) #remove common bedding times
 xy14 <- data.frame("x" = smr14$Long, "y" = smr14$Lat) # pull coords
 spdf.ll14 <- SpatialPointsDataFrame(xy14, smr14, proj4string = latlong) #spatial
 spdf14 <- spTransform(spdf.ll14, de14@crs) # match projection of de tifs
-ext14 <- as.data.frame(extract(de14, spdf.ll14)) #de from each foraging location
+ext14 <- as.data.frame(extract(de14, spdf14)) #de from each foraging location
 colnames(ext14) <- "DE"
 ext14 <- cbind(smr14, ext14) #combine locations with extracted de data
 
@@ -142,7 +143,7 @@ nute14 <- ext14 %>%
 smr15 <- locs %>%
   filter(Sex == "Female")  %>% # not using males for nutrition analysis
   subset(between(Date, as.Date("2015-07-01"), as.Date("2015-08-31"))) %>%
-  subset(Time <= 800 | Time >= 1800) #remove mostly bedding locations
+  subset(Time <= 800 | Time >= 2000) #remove mostly bedding locations
 xy15 <- data.frame("x" = smr15$Long, "y" = smr15$Lat)
 spdf.ll15 <- SpatialPointsDataFrame(xy15, smr15, proj4string = latlong) #spatial
 spdf15 <- spTransform(spdf.ll15, de15@crs) # match projection of de tifs
