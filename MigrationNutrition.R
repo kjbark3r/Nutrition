@@ -180,15 +180,15 @@ write.csv(nutedays, file = "nClass-daily-de.csv", row.names=FALSE)
 #############################################
 
 # data csvs from above
-#mig <- read.csv("migstatus.csv") 
-#nute <- read.csv("avg-daily-de.csv") 
-#nutedays <- read.csv("nClass-daily-de.csv")
-#bod <- read.csv("elk-condition.csv") 
+mig <- read.csv("migstatus.csv") 
+nute <- read.csv("avg-daily-de.csv") 
+nutedays <- read.csv("nClass-daily-de.csv")
+bod <- read.csv("bodycondition.csv") 
 
 # nutrition as average daily DE exposure
 mignutebod <- mig %>%
   right_join(nute, by = "IndivYr") %>%
-  right_join(bod, by = "AnimalID")
+  left_join(bod, by = "AnimalID")
 write.csv(mignutebod, file = "mig-avgDE.csv", row.names=F)
 
 # nutrition as number of days with each level of DE
@@ -196,5 +196,5 @@ bod$AnimalID <- as.character(bod$AnimalID) #otherwise won't join
 mignutebod2 <- nutedays %>%
   right_join(mig, by = "IndivYr") %>%
   mutate(AnimalID = sub("\\-.*$",  "", IndivYr)) %>%
-  right_join(bod, by = "AnimalID")
+  left_join(bod, by = "AnimalID")
 write.csv(mignutebod2, file = "mig-ndaysDE.csv", row.names=F)

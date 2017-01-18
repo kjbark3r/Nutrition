@@ -21,18 +21,15 @@ library(dplyr)
 
 wd_workcomp <- "C:\\Users\\kristin.barker\\Documents\\GitHub\\Nutrition"
 wd_laptop <- "C:\\Users\\kjbark3r\\Documents\\GitHub\\Nutrition"
-if (file.exists(wd_workcomp)) {
-  setwd(wd_workcomp)
-} else {
-    setwd(wd_laptop)
-}
+if (file.exists(wd_workcomp)) {setwd(wd_workcomp)
+} else {setwd(wd_laptop)}
 rm(wd_workcomp, wd_laptop)
 
 # DATA #
 
 # average DE exposure per indiv per day
 mignute.avg <- read.csv("mig-avgDE.csv") %>%
-  na.omit() %>%
+#  na.omit() %>%
   within(Date <- as.POSIXlt(Date, format = "%Y-%m-%d")) %>%
   transform(MigStatus = factor(MigStatus,
                         levels = c("Resident",
@@ -44,7 +41,7 @@ mignute.avg$DOY <- mignute.avg$Date$yday #day of year
 # number days each indiv exposed to excellent/good/marginal/poor 
 # and adequate/inadequate forage quality
 mignute.ndays <- read.csv("mig-ndaysDE.csv")%>%
-  na.omit() %>%
+#  na.omit() %>%
   transform(MigStatus = factor(MigStatus,
                         levels = c("Resident",
                                    "Intermediate",
@@ -151,7 +148,7 @@ inad <- ggplot(data = mignute.ndays,
             x = "", y = "Number of Days Exposure")
 grid.arrange(ad, inad, nrow=2)
 
-# body condition - excellent/good/marginal/poor
+# body measurements - res/intermed/mig (useless)
 exc <- ggplot(data = mignute.ndays, 
        aes(x = MigStatus, y = MAXFAT)) +
        geom_boxplot(aes(fill = MAXFAT)) +
@@ -170,33 +167,67 @@ pr <- ggplot(data = mignute.ndays,
        labs(title = "Girth")
 grid.arrange(exc, gd, marg, pr, nrow = 2)
 
+# IFBF - res/intermed/mig 
+ifbf.nona <- filter(mignute.ndays, !is.na(IFBF))
+ggplot(data = mignute.ndays, 
+       aes(x = MigStatus, y = IFBF)) +
+       geom_boxplot(aes(fill = IFBF)) +
+       labs(title = "IFBF")
+
 # timeplot DE by day
 tp <-  ggplot(avgday, 
               aes(DOY, AvgDayDE, colour = MigStatus)) +
               geom_line() +
               geom_point() +
-              geom_hline(yintercept=2.6)
+              geom_hline(yintercept=2.75)
 
 # add hist - ppn res/int/mig with adequate fq per day
 tp + geom_bar(data = ppn,
               aes(DOY, y = ppnAd, fill = MigStatus), 
               position = "stack", stat = "identity")
-  
-  
+
 # hist - ppn res/int/mig with adequate fq per day
 ggplot(ppn,
        aes(DOY, y = ppnAd, fill = MigStatus)) +
        geom_bar(position = "stack", stat = "identity")
 
+# avg DE by day of plot visit, out of curiosity
+plotinfo <- read.csv("../Vegetation/de-plot-summeronly.csv")
+plotinfo$DOY <- as.POSIXlt(plotinfo$Date)$yday
+scatter.smooth(plotinfo$DE ~ plotinfo$DOY)
+  # oh good, DOY alone didn't change DE much
 
+# avg DE per day by elk location
+test <- mignute.avg %>%
+  dplyr::select(-Date) %>%
+  group_by(DOY) %>%
+  summarise(AvgDE = mean(AvgDE)) %>%
+  ungroup()
+scatter.smooth(test$AvgDE ~ test$DOY)
+  # ha, quite the selection
+
+# residual plots - avgDE
+a.avg <- glm(AvgDE ~ MigStatus, data = mignute.avg)
+summary(a)
+par(mfrow=c(2,2))
+plot(a)
+
+# residual plots - n days exposed to adequate
+a.nd <- glm(nAdequate ~ MigStatus, data = mignute.ndays)
+summary(a)
+par(mfrow=c(2,2))
+plot(a)
 
 #################
 ####  Stats  ####
 #################
 
-# adequate forage quality
+# anova: adequate DE exposure
+adeq <- aov(nAdequate ~ MigStatus, data = mignute.ndays)
+adeq
 
 
+# excellent forage quality
+# good forage quality
 # marginal forage quality
-
 # poor forage quality
