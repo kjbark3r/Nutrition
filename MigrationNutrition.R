@@ -52,17 +52,20 @@ rm(wd_workcomp, wd_laptop)
 
 # DATA #
 
+# pull lab id's and animal id's; connect animal ids to ifbf lab data
 id <- sqlQuery(channel, paste("select AnimalID, LabID
                                from AnimalInfo"))
 ifbf <- read.csv("ifbf.csv") %>%
   rename(LabID = SampleID)
-
 bod <- ifbf %>%
   left_join(id, by = "LabID") %>%
   select(c(AnimalID, IFBF, preg_pspb, LactStatus, girthmass, adjmass, Age))
-
 write.csv(bod, file = "bodycondition.csv", row.names=F)
 
+# pull capture locations in order to remove ski hill elk from analysis
+caploc <- sqlQuery(channel, paste("select AnimalID, Location
+                               from AnimalInfo"))
+write.csv(caploc, file = "capture-locations.csv", row.names=F)
 
 ##############################
 ####  Migratory Behavior  ####
@@ -75,10 +78,10 @@ vi95 <- read.csv("../Migration/HRoverlap/volumeintersection.csv")
 vi50 <- read.csv("../Migration/HRoverlap/volumeintersection50.csv")
 mig <- vi95 %>%
   rename(VI95 = SprVI) %>%
-  select(-c(AnimalID, Sex)) %>% 
+  dplyr::select(-c(AnimalID, Sex)) %>% 
   left_join(vi50, by = "IndivYr") %>%
   rename(VI50 = SprVI) %>%
-  select(IndivYr, AnimalID, VI95, VI50) 
+  dplyr::select(IndivYr, AnimalID, VI95, VI50) 
 
 
 # CLASSIFICATION #
@@ -91,7 +94,8 @@ mig <- vi95 %>%
 mig <- transform(mig, 
        MigStatus = ifelse(VI50 > 0, "Resident",
                    ifelse(VI95 == 0, "Migrant",
-                          "Intermediate")))
+                          "Intermediate"))) %>%
+  mutate(MigRank = rank(-VI95, ties.method = "random"))
 
 write.csv(mig, file = "migstatus.csv", row.names=FALSE)
 
@@ -184,17 +188,25 @@ mig <- read.csv("migstatus.csv")
 nute <- read.csv("avg-daily-de.csv") 
 nutedays <- read.csv("nClass-daily-de.csv")
 bod <- read.csv("bodycondition.csv") 
+caploc <- read.csv("capture-locations.csv")
 
 # nutrition as average daily DE exposure
 mignutebod <- mig %>%
   right_join(nute, by = "IndivYr") %>%
-  left_join(bod, by = "AnimalID")
+  left_join(bod, by = "AnimalID") %>%
+  left_join(caploc, by = "AnimalID") %>%
+  filter(Location != "Ski Hill") %>% # remove Ski Hill elk (n=6)
+  select(-Location) %>%
+  within(MigRank <- MigRank-6) # adjust rank to acct for removal
 write.csv(mignutebod, file = "mig-avgDE.csv", row.names=F)
 
 # nutrition as number of days with each level of DE
-bod$AnimalID <- as.character(bod$AnimalID) #otherwise won't join
+#bod$AnimalID <- as.character(bod$AnimalID) #otherwise won't join
 mignutebod2 <- nutedays %>%
   right_join(mig, by = "IndivYr") %>%
-  mutate(AnimalID = sub("\\-.*$",  "", IndivYr)) %>%
-  left_join(bod, by = "AnimalID")
+  left_join(bod, by = "AnimalID") %>%
+  left_join(caploc, by = "AnimalID") %>%
+  filter(Location != "Ski Hill") %>% # remove Ski Hill elk (n=6)
+  select(-Location)%>%
+  within(MigRank <- MigRank-6) # adjust rank to acct for removal
 write.csv(mignutebod2, file = "mig-ndaysDE.csv", row.names=F)

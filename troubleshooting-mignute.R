@@ -4,11 +4,13 @@
 ###########################################################
 
 
+########################
 #to make fake pretty nutrition map for WILD180 talk
 loggdm14 <- raster("../Vegetation/pred2014.tif")
 plot(loggdm14)
 plot(hrs14, add = TRUE)
 
+########################
 #works, but can't figure out how to subset hrs by year later
 smr <- locs %>%
   filter(Sex == "Female")  %>% # not using males for nutrition analysis
@@ -21,6 +23,7 @@ spdf <- spTransform(spdf.ll, stateplane) # match projection of gdm tifs
 kuds <- kernelUD(spdf[,8], h = "href", same4all = FALSE) #[,8] is IndivYr
 hrs <- getverticeshr(kuds) #home range outline ploygons
 
+########################
 # extracting from >1 polygon
 test <- extract(gdm14, hrs, method = "simple", small = TRUE, fun = sum)
   #only worked for 17 rows; all rest NA
@@ -28,9 +31,28 @@ test <- extract(gdm14, hrs, method = "simple", small = TRUE, fun = sum)
   #also doesn't retain IndivYr
     #df=TRUE could help?
 
+########################
 #total shitshow of a graph, but code is usable
 # shows avgDE for each indiv each day, color-coded by MigStatus
 ggplot(mignute.avg, 
        aes(DOY, AvgDE, colour = MigStatus)) +
        geom_line() +
        geom_point()
+
+########################
+# adding MigRank to dfs
+
+test <- read.csv("mig-ndaysDE.csv") %>%
+  transform(MigStatus = factor(MigStatus,
+                        levels = c("Resident",
+                                   "Intermediate",
+                                   "Migrant"),
+                            ordered = TRUE)) %>%
+  mutate(nAdequate = nExc+nGood) %>%
+  mutate(nInadequate = nMarg+nPoor) %>%
+  mutate(MigRank = rank(-VI95, ties.method = "random"))
+scatter.smooth(test$nAdequate ~ test$MigRank)
+# cool, added in data prep and re-read in data for analysis
+
+ #something like 
+#transform(SprAORank = ave(SprAO, Year, FUN = function(x) rank(-x, ties.method = "average")),

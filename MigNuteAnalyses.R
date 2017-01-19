@@ -25,7 +25,8 @@ if (file.exists(wd_workcomp)) {setwd(wd_workcomp)
 } else {setwd(wd_laptop)}
 rm(wd_workcomp, wd_laptop)
 
-# DATA #
+
+# ORIGINAL DATA (from MigrationNutrition.R) #
 
 # average DE exposure per indiv per day
 mignute.avg <- read.csv("mig-avgDE.csv") %>%
@@ -38,10 +39,8 @@ mignute.avg <- read.csv("mig-avgDE.csv") %>%
                             ordered = TRUE)) 
 mignute.avg$DOY <- mignute.avg$Date$yday #day of year
 
-# number days each indiv exposed to excellent/good/marginal/poor 
-# and adequate/inadequate forage quality
-mignute.ndays <- read.csv("mig-ndaysDE.csv")%>%
-#  na.omit() %>%
+# number days exposure to each nutrition category per indiv
+mignute.ndays <- read.csv("mig-ndaysDE.csv") %>%
   transform(MigStatus = factor(MigStatus,
                         levels = c("Resident",
                                    "Intermediate",
@@ -50,7 +49,10 @@ mignute.ndays <- read.csv("mig-ndaysDE.csv")%>%
   mutate(nAdequate = nExc+nGood) %>%
   mutate(nInadequate = nMarg+nPoor)
 
-# average DE value per day per migratory status
+
+# MAKING NEW DATAFRAMES FROM ORIGINAL DATA #
+
+# PER MIG STATUS average DE value per day
 avgday <- mignute.avg %>%
   dplyr::select(-Date) %>%
   group_by(DOY, MigStatus) %>%
@@ -61,7 +63,18 @@ avgday <- mignute.avg %>%
                    ifelse(AvgDayDE > 2.40 & AvgDayDE < 2.75, "Marginal",
                           "Poor")))) 
 
-# ppn mres/intermed/mig adequate DE per day
+# PER INDIV average DE value per day
+avgday.indiv <- mignute.avg %>%
+  dplyr::select(-Date) %>%
+  group_by(IndivYr, MigRank) %>%
+  summarise(AvgDayDE = mean(AvgDE, na.rm=T)) %>%
+  ungroup() %>%
+  mutate(DEclass = ifelse(AvgDayDE >= 2.9, "Excellent", 
+                   ifelse(AvgDayDE >= 2.75 & AvgDayDE < 2.9, "Good",
+                   ifelse(AvgDayDE > 2.40 & AvgDayDE < 2.75, "Marginal",
+                          "Poor"))))
+
+# PER DAY ppn mres/intermed/mig adequate DE
 ppn <- mignute.avg %>%
   dplyr::select(-Date) %>% #dplyr hates POSIXlt
   group_by(DOY, MigStatus) %>%
@@ -86,12 +99,15 @@ hist(mignute.ndays$nPoor)
 
 
 # mig continuum & avg daily DE
+par(mfrow=c(2,1))
 scatter.smooth(mignute.avg$AvgDE ~ I(mignute.avg$VI95*-1),
                xlab = "Strength of Migratory Bahavior",
-               ylab = "Available Nutrition")
+               ylab = "Available Nutrition",
+               main = "VI95")
 scatter.smooth(mignute.avg$AvgDE ~ I(mignute.avg$VI50*-1),
                xlab = "Strength of Migratory Bahavior",
-               ylab = "Available Nutrition")
+               ylab = "Available Nutrition",
+               main = "VI50")
 
 # mig factor & avgde (prob biologically meaningless)
 ggplot(data = mignute.avg, 
@@ -117,24 +133,6 @@ pr <- ggplot(data = mignute.ndays,
        labs(title = "Poor")
 grid.arrange(exc, gd, marg, pr, nrow = 2)
 
-# n days exposure - adequate/marginal/poor
-ad <- ggplot(data = mignute.ndays, 
-       aes(x = MigStatus, y = nAdequate)) +
-       geom_boxplot(aes(fill = nAdequate)) +
-       labs(title = "Adequate Forage Quality",
-            x = "", y = "Number of Days Exposure")
-mar <- ggplot(data = mignute.ndays, 
-       aes(x = MigStatus, y = nMarg)) +
-       geom_boxplot(aes(fill = nMarg)) +
-       labs(title = "Marginal Forage Quality",
-            x = "", y = "Number of Days Exposure")
-inad <- ggplot(data = mignute.ndays, 
-       aes(x = MigStatus, y = nPoor)) +
-       geom_boxplot(aes(fill = nPoor)) +
-       labs(title = "Poor Forage Quality",
-            x = "", y = "Number of Days Exposure")
-grid.arrange(ad, mar, inad, nrow=3)
-
 # n days exposure - adequate/inadequate
 ad <- ggplot(data = mignute.ndays, 
        aes(x = MigStatus, y = nAdequate)) +
@@ -147,25 +145,6 @@ inad <- ggplot(data = mignute.ndays,
        labs(title = "Inadequate Forage Quality",
             x = "", y = "Number of Days Exposure")
 grid.arrange(ad, inad, nrow=2)
-
-# body measurements - res/intermed/mig (useless)
-exc <- ggplot(data = mignute.ndays, 
-       aes(x = MigStatus, y = MAXFAT)) +
-       geom_boxplot(aes(fill = MAXFAT)) +
-       labs(title = "MAXFAT")
-gd <- ggplot(data = mignute.ndays, 
-       aes(x = MigStatus, y = RUMP)) +
-       geom_boxplot(aes(fill = RUMP)) +
-       labs(title = "RUMP")
-marg <- ggplot(data = mignute.ndays, 
-       aes(x = MigStatus, y = Chest)) +
-       geom_boxplot(aes(fill = Chest)) +
-       labs(title = "Chest")
-pr <- ggplot(data = mignute.ndays, 
-       aes(x = MigStatus, y = girth)) +
-       geom_boxplot(aes(fill = girth)) +
-       labs(title = "Girth")
-grid.arrange(exc, gd, marg, pr, nrow = 2)
 
 # IFBF - res/intermed/mig 
 ifbf.nona <- filter(mignute.ndays, !is.na(IFBF))
@@ -180,6 +159,7 @@ tp <-  ggplot(avgday,
               geom_line() +
               geom_point() +
               geom_hline(yintercept=2.75)
+tp
 
 # add hist - ppn res/int/mig with adequate fq per day
 tp + geom_bar(data = ppn,
@@ -217,6 +197,32 @@ a.nd <- glm(nAdequate ~ MigStatus, data = mignute.ndays)
 summary(a)
 par(mfrow=c(2,2))
 plot(a)
+
+# nute ~ MigRank
+par(mfrow=c(2,1))
+scatter.smooth(mignute.avg$AvgDE ~ mignute.avg$MigRank)
+scatter.smooth(mignute.ndays$nAdequate ~ mignute.ndays$MigRank)
+
+par(mfrow=c(2,1))
+scatter.smooth(mignute.ndays$nAdequate ~ mignute.ndays$MigRank)
+scatter.smooth(avgday.indiv$AvgDayDE ~ avgday.indiv$MigRank)
+
+######################################
+####  Actual presentation graphs  ####
+######################################
+
+# proportion resident/intermediate/migrant
+piedat <- mignute.ndays %>%
+  group_by(MigStatus) %>%
+  transmute(Prop = n()/nrow(mignute.ndays)) %>%
+  ungroup() %>%
+  distinct()
+pie(piedat$Prop, labels = piedat$Prop)
+gpie <- ggplot(piedat, 
+               aes(x="", y=Prop, fill=MigStatus)) +
+  coord_polar("y", start=0)
+#eh screw it, i'll just throw piedat into excel
+
 
 #################
 ####  Stats  ####
