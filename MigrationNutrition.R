@@ -196,7 +196,7 @@ mignutebod <- mig %>%
   left_join(bod, by = "AnimalID") %>%
   left_join(caploc, by = "AnimalID") %>%
   filter(Location != "Ski Hill") %>% # remove Ski Hill elk (n=6)
-  select(-Location) %>%
+  dplyr::select(-Location) %>%
   within(MigRank <- MigRank-6) # adjust rank to acct for removal
 write.csv(mignutebod, file = "mig-avgDE.csv", row.names=F)
 
@@ -207,6 +207,6 @@ mignutebod2 <- nutedays %>%
   left_join(bod, by = "AnimalID") %>%
   left_join(caploc, by = "AnimalID") %>%
   filter(Location != "Ski Hill") %>% # remove Ski Hill elk (n=6)
-  select(-Location)%>%
+  dplyr::select(-Location)%>%
   within(MigRank <- MigRank-6) # adjust rank to acct for removal
 write.csv(mignutebod2, file = "mig-ndaysDE.csv", row.names=F)
