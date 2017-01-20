@@ -12,9 +12,10 @@
 
 # PACKAGES #
 
+library(dplyr)
 library(ggplot2) # graphics
 library(gridExtra) # >1 plot per display
-library(dplyr)
+library(pscl)
 
 
 # WORKING DIRECTORY #
@@ -104,27 +105,22 @@ hist(mignute.ndays$nAdequate)
 hist(mignute.ndays$nMarg)
 hist(mignute.ndays$nPoor)
 
-# mig factor & avgde (prob biologically meaningless)
-ggplot(data = mignute.avg, 
-       aes(x = MigStatus, y = AvgDE)) +
-       geom_boxplot(aes(fill = AvgDE))
-
 # n days exposure - excellent/good/marginal/poor
 exc <- ggplot(data = mignute.ndays, 
        aes(x = MigStatus, y = nExc)) +
-       geom_boxplot(aes(fill = nExc)) +
+       geom_boxplot(aes(fill = MigStatus)) +
        labs(title = "Excellent")
 gd <- ggplot(data = mignute.ndays, 
        aes(x = MigStatus, y = nGood)) +
-       geom_boxplot(aes(fill = nGood)) +
+       geom_boxplot(aes(fill = MigStatus)) +
        labs(title = "Good")
 marg <- ggplot(data = mignute.ndays, 
        aes(x = MigStatus, y = nMarg)) +
-       geom_boxplot(aes(fill = nMarg)) +
+       geom_boxplot(aes(fill = MigStatus)) +
        labs(title = "Marginal")
 pr <- ggplot(data = mignute.ndays, 
        aes(x = MigStatus, y = nPoor)) +
-       geom_boxplot(aes(fill = nPoor)) +
+       geom_boxplot(aes(fill = MigStatus)) +
        labs(title = "Poor")
 grid.arrange(exc, gd, marg, pr, nrow = 2)
 
@@ -132,7 +128,7 @@ grid.arrange(exc, gd, marg, pr, nrow = 2)
 avgde <- ggplot(data = avgday.indiv, 
        aes(x = MigStatus, y = AvgDayDE)) +
        geom_boxplot(aes(fill = MigStatus)) +
-       labs(title = "Avg DE Exposure")+
+       labs(title = "Avg Daily DE Exposure")+
        geom_hline(yintercept=2.75)
 avgde
 
@@ -211,8 +207,33 @@ par(mfrow=c(2,1))
 scatter.smooth(mignute.ndays$nAdequate ~ mignute.ndays$MigRank)
 scatter.smooth(avgday.indiv$AvgDayDE ~ avgday.indiv$MigRank)
 
-# nute ~ VI95
+# nute ~ MigRank - nDays vs AvgDailyDE
+par(mfrow=c(2,1))
+scatter.smooth(mignute.ndays$nAdequate ~ mignute.ndays$MigRank)
+scatter.smooth(avgday.indiv$AvgDayDE ~ avgday.indiv$MigRank)
+# basically the same relationship
+
+# nute ~ mign - MigRank vs. VI95 
+par(mfrow=c(2,1))
+scatter.smooth(avgday.indiv$AvgDayDE ~ avgday.indiv$MigRank)
+scatter.smooth(avgday.indiv$AvgDayDE ~ -(avgday.indiv$VI95))
+
+# same as above but reverse order to check asymptote 
+par(mfrow=c(2,1))
+scatter.smooth(avgday.indiv$AvgDayDE ~ -(avgday.indiv$MigRank))
 scatter.smooth(avgday.indiv$AvgDayDE ~ avgday.indiv$VI95)
+
+# count vs continuous response (check can use zeroinfl)
+par(mfrow=c(2,1))
+scatter.smooth(avgday.indiv$AvgDayDE ~ avgday.indiv$VI95)
+scatter.smooth(mignute.ndays$nAdequate ~ mignute.ndays$VI95)
+# looks essentially the same, so feel ok about
+  # using the count data
+
+# hist of VI95
+par(mfrow=c(1,1))
+hist(avgday.indiv$VI95)
+# basically normal other than the clump
 
 ######################################
 ####  Actual presentation graphs  ####

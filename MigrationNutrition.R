@@ -76,26 +76,36 @@ write.csv(caploc, file = "capture-locations.csv", row.names=F)
 
 vi95 <- read.csv("../Migration/HRoverlap/volumeintersection.csv")
 vi50 <- read.csv("../Migration/HRoverlap/volumeintersection50.csv")
+caploc <- read.csv("capture-locations.csv")
+
+# tweak and claen; remove ski hill elk
 mig <- vi95 %>%
   rename(VI95 = SprVI) %>%
   dplyr::select(-c(AnimalID, Sex)) %>% 
   left_join(vi50, by = "IndivYr") %>%
   rename(VI50 = SprVI) %>%
-  dplyr::select(IndivYr, AnimalID, VI95, VI50) 
-
+  dplyr::select(IndivYr, AnimalID, VI95, VI50) %>%
+  left_join(caploc, by = "AnimalID") %>%
+  filter(Location != "Ski Hill") %>% # remove Ski Hill elk (n=6)
+  dplyr::select(-Location)
+  
 
 # CLASSIFICATION #
 
-## discretize behavior using volume intersection of winter/summer KDEs
+## rank strength of mig behavior, and discretize behavior
+## using volume intersection of winter/summer KDEs
   # resident is any indiv whose CORES (50% UD) overlap between seasons
   # migrant is any indiv whose HRs (95% UD) never overlap
   # intermediate is everyone else
+  # rank is sorted first by 95% VI, then by 50% VI
 
-mig <- transform(mig, 
-       MigStatus = ifelse(VI50 > 0, "Resident",
-                   ifelse(VI95 == 0, "Migrant",
-                          "Intermediate"))) %>%
-  mutate(MigRank = rank(-VI95, ties.method = "random"))
+mig <- mig %>%
+  arrange(desc(VI95)) %>%
+  arrange(desc(VI50)) %>%
+  mutate(MigRank = row_number(),
+         MigStatus = ifelse(VI50 > 0, "Resident",
+                     ifelse(VI95 == 0, "Migrant",
+                            "Intermediate")))
 
 write.csv(mig, file = "migstatus.csv", row.names=FALSE)
 
@@ -191,22 +201,14 @@ bod <- read.csv("bodycondition.csv")
 caploc <- read.csv("capture-locations.csv")
 
 # nutrition as average daily DE exposure
-mignutebod <- mig %>%
-  right_join(nute, by = "IndivYr") %>%
-  left_join(bod, by = "AnimalID") %>%
-  left_join(caploc, by = "AnimalID") %>%
-  filter(Location != "Ski Hill") %>% # remove Ski Hill elk (n=6)
-  dplyr::select(-Location) %>%
-  within(MigRank <- MigRank-6) # adjust rank to acct for removal
+mignutebod <- mig %>% 
+  right_join(nute, by = "IndivYr") %>% #combine mig & nute
+  filter(!is.na(MigRank)) %>% #remove ski hill elk
+  left_join(bod, by = "AnimalID") #add body condition
 write.csv(mignutebod, file = "mig-avgDE.csv", row.names=F)
 
 # nutrition as number of days with each level of DE
-#bod$AnimalID <- as.character(bod$AnimalID) #otherwise won't join
 mignutebod2 <- nutedays %>%
   right_join(mig, by = "IndivYr") %>%
-  left_join(bod, by = "AnimalID") %>%
-  left_join(caploc, by = "AnimalID") %>%
-  filter(Location != "Ski Hill") %>% # remove Ski Hill elk (n=6)
-  dplyr::select(-Location)%>%
-  within(MigRank <- MigRank-6) # adjust rank to acct for removal
+  left_join(bod, by = "AnimalID") 
 write.csv(mignutebod2, file = "mig-ndaysDE.csv", row.names=F)

@@ -40,7 +40,7 @@ ggplot(mignute.avg,
        geom_point()
 
 ########################
-# adding MigRank to dfs
+# adding MigRank to dfs ####
 
 test <- read.csv("mig-ndaysDE.csv") %>%
   transform(MigStatus = factor(MigStatus,
@@ -58,7 +58,7 @@ scatter.smooth(test$nAdequate ~ test$MigRank)
 #transform(SprAORank = ave(SprAO, Year, FUN = function(x) rank(-x, ties.method = "average")),
 
 ########################
-# attempting to model relationship bt vi95 and nute
+# attempting to model relationship bt vi95 and nute ####
 
 # zero-infl bc of the migrant 0s
 library(pscl) # zero-inflated model
@@ -80,3 +80,87 @@ hist(avgday.indiv$AvgDayDE)
 mod2 <- glm(AvgDayDE ~ VI95, data = avgday.indiv)
 summary(mod2)
 par(mfrow=c(2,2)); plot(mod2)
+
+########################
+# rank migstatus sorting 1st by 95 then by 50 ####
+
+test <- mig %>%
+  mutate(MigRank = rank(order(-VI95, -VI50), ties.method = "random"))
+# newp
+
+test <- mig %>%
+  mutate(MigRank = rank(c(-VI95, -VI50), ties.method = "random"))
+# newp
+
+test <- mig %>%
+  mutate(MigRank = rank(-VI95, -VI50, ties.method = "random"))
+# yup :)
+
+# more than one mutated column in same argument?
+test <- mig %>%
+  mutate(MigRank = rank(-VI95, -VI50, ties.method = "random"),
+         MigStatus = ifelse(VI50 > 0, "Resident",
+                   ifelse(VI95 == 0, "Migrant",
+                          "Intermediate"))) 
+# yup.
+
+# add in consideration of migstatus
+# so residents and intermediates aren't ranked together
+test <- mig %>%
+  mutate(MigStatus = ifelse(VI50 > 0, "Resident",
+                   ifelse(VI95 == 0, "Migrant",
+                          "Intermediate")),
+         MigRank = rank(MigStatus, -VI95, -VI50, 
+                        ties.method = "random")) 
+# nope
+# first, sort by VI95, descending
+# THEN, sort by VI50, descending
+# wait, that should have been all i needed to do, hm
+test <- test %>%
+  dplyr::select(-MigRank) %>%
+  arrange(desc(VI95))
+# so far so good
+
+test <- mig %>%
+  arrange(desc(VI95, VI50)) %>%
+  mutate(MigStatus = ifelse(VI50 > 0, "Resident",
+                   ifelse(VI95 == 0, "Migrant",
+                          "Intermediate")))
+
+test <- mig %>%
+  arrange(desc(VI50, VI95)) %>%
+  mutate(MigStatus = ifelse(VI50 > 0, "Resident",
+                   ifelse(VI95 == 0, "Migrant",
+                          "Intermediate")))
+# kill me.
+
+test <- mig %>%
+  arrange(desc(VI95)) %>%
+  arrange(desc(VI50)) %>%
+  mutate(MigStatus = ifelse(VI50 > 0, "Resident",
+                   ifelse(VI95 == 0, "Migrant",
+                          "Intermediate")),
+         MigRank = row_number())
+# only bummer is ties.method is basically animalid now
+# bc thats how df was arranged originally
+# but i consider that random enough
+
+
+########################
+# checking ski hill elk removal ####
+# and fixing migranks accordingly
+
+test <- mignutebod %>%
+  dplyr::select(IndivYr, Location) %>%
+  distinct()
+# ski hill elk comprise 7 elk-years; n = 82 incl them
+# ok verified removal works; just need to fix ranks now
+test <- mignutebod %>%
+  dplyr::select(IndivYr, MigRank) %>%
+  distinct()
+
+test <- mignutebod %>%
+  dplyr::select(IndivYr, MigRank) %>%
+  mutate(MigRank = arrange()
+
+
