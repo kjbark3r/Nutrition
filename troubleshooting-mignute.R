@@ -161,6 +161,18 @@ test <- mignutebod %>%
 
 test <- mignutebod %>%
   dplyr::select(IndivYr, MigRank) %>%
-  mutate(MigRank = arrange()
+  mutate(MigRank = arrange())
 
-
+         
+########################
+# pie graph - proportion resident/intermediate/migrant ####
+piedat <- mignute.ndays %>%
+  group_by(MigStatus) %>%
+  transmute(Prop = n()/nrow(mignute.ndays)) %>%
+  ungroup() %>%
+  distinct()
+pie(piedat$Prop, labels = piedat$Prop)
+gpie <- ggplot(piedat, 
+               aes(x="", y=Prop, fill=MigStatus)) +
+  coord_polar("y", start=0)
+#eh screw it, i'll just throw piedat into excel

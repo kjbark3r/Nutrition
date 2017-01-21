@@ -235,21 +235,12 @@ par(mfrow=c(1,1))
 hist(avgday.indiv$VI95)
 # basically normal other than the clump
 
+
 ######################################
 ####  Actual presentation graphs  ####
 ######################################
 
-# proportion resident/intermediate/migrant
-piedat <- mignute.ndays %>%
-  group_by(MigStatus) %>%
-  transmute(Prop = n()/nrow(mignute.ndays)) %>%
-  ungroup() %>%
-  distinct()
-pie(piedat$Prop, labels = piedat$Prop)
-gpie <- ggplot(piedat, 
-               aes(x="", y=Prop, fill=MigStatus)) +
-  coord_polar("y", start=0)
-#eh screw it, i'll just throw piedat into excel
+
 
 
 #################
@@ -262,14 +253,59 @@ summary(ifbf)
 #insig
 
 # anova: ndays exposure adequate fq
-adfq <- aov(nAdequate ~ MigStatus, data = mignute.ndays)
-summary(adfq)
+nadfq <- aov(nAdequate ~ MigStatus, data = mignute.ndays)
+summary(nadfq)
 #super sig
+# double-check meets normality assumption
+hist(resid(nadfq))
+
 
 # anova: avg de exposure
-adfq <- aov(AvgDayDE ~ MigStatus, data = avgday.indiv)
-summary(adfq)
+aadfq <- aov(AvgDayDE ~ MigStatus, data = avgday.indiv)
+summary(aadfq)
 #super sig
+# double-check meets normality assumption
+hist(resid(aadfq))
+
+# bonferroni multiple comparison: ndaysad
+nadb <- pairwise.t.test(x = mignute.ndays$nAdequate, 
+                        g = mignute.ndays$MigStatus, 
+                        p.adjust.method = "bonf")
+nadb
+# residents and intermediates not significantly diff
+# migrants significantly diff from both
+
+# bonferroni multiple comparison: avgde
+aadb <- pairwise.t.test(x = avgday.indiv$AvgDayDE, 
+                        g = avgday.indiv$MigStatus, 
+                        p.adjust.method = "bonf")
+aadb
+# ditto above
+
+# holm multiple comparison: ndaysad
+nadh <- pairwise.t.test(x = mignute.ndays$nAdequate, 
+                        g = mignute.ndays$MigStatus, 
+                        p.adjust.method = "holm")
+nadh
+# this says all 3 are different (res-inter p=0.028)
+
+# holm multiple comparison: avgde
+aadh <- pairwise.t.test(x = avgday.indiv$AvgDayDE, 
+                        g = avgday.indiv$MigStatus, 
+                        p.adjust.method = "holm")
+aadh
+# this also says all 3 are different (res-inter p=0.030) 
+
+# tukey hsd multiple comparison - ndays de
+nadt <- TukeyHSD(aov(nAdequate ~ MigStatus, data = mignute.ndays))
+nadt
+
+# tukey hsd multiple comparison - avgde
+aadt <- TukeyHSD(aov(AvgDayDE ~ MigStatus, data = avgday.indiv))
+aadt
+
+# ok, going with no sig diff (slash weak evidence for diff)
+## due to agreement bt bonferroni and tukey
 
 # relationship bt avgde and vi95
 
