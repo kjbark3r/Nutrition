@@ -124,14 +124,6 @@ pr <- ggplot(data = mignute.ndays,
        labs(title = "Poor")
 grid.arrange(exc, gd, marg, pr, nrow = 2)
 
-# avg de exposure by mig rank
-avgde <- ggplot(data = avgday.indiv, 
-       aes(x = MigStatus, y = AvgDayDE)) +
-       geom_boxplot(aes(fill = MigStatus)) +
-       labs(title = "Avg Daily DE Exposure")+
-       geom_hline(yintercept=2.75)
-avgde
-
 # n days exposure - adequate/inadequate
 ad <- ggplot(data = mignute.ndays, 
        aes(x = MigStatus, y = nAdequate)) +
@@ -145,13 +137,20 @@ inad <- ggplot(data = mignute.ndays,
             x = "", y = "Number of Days Exposure")
 grid.arrange(ad, inad, nrow=2)
 
+# avg de exposure by mig rank, AND
 # IFBF - res/intermed/mig 
-ifbf.nona <- filter(mignute.ndays, !is.na(IFBF))
-ggplot(data = mignute.ndays, 
-       aes(x = MigStatus, y = IFBF)) +
+avgde <- ggplot(data = avgday.indiv, 
+       aes(x = MigStatus, y = AvgDayDE)) +
        geom_boxplot(aes(fill = MigStatus)) +
-       labs(title = "IFBF")
-
+       labs(title = "Avg Daily DE Exposure")+
+       geom_hline(yintercept=2.75)
+ifbf.nona <- filter(mignute.ndays, !is.na(IFBF))
+ifbf <- ggplot(data = mignute.ndays, 
+           aes(x = MigStatus, y = IFBF)) +
+           geom_boxplot(aes(fill = MigStatus)) +
+           labs(title = "IFBF")
+grid.arrange(avgde, ifbf, nrow=2)
+ 
 # timeplot DE by day
 tp <-  ggplot(avgday, 
               aes(DOY, AvgDayDE, colour = MigStatus)) +
@@ -230,11 +229,34 @@ scatter.smooth(mignute.ndays$nAdequate ~ mignute.ndays$VI95)
 # looks essentially the same, so feel ok about
   # using the count data
 
+# ndaysad - relationship with and without zeros
+ndays.no0 <- filter(mignute.ndays, VI95 > 0)
+par(mfrow=c(2,1))
+scatter.smooth(mignute.ndays$nAdequate ~ mignute.ndays$VI95)
+scatter.smooth(ndays.no0$nAdequate ~ ndays.no0$VI95)
+
+# avgde - relationship with and without zeros
+avgde.no0 <- filter(avgday.indiv, VI95 > 0)
+par(mfrow=c(2,1))
+scatter.smooth(avgday.indiv$AvgDayDE ~ avgday.indiv$VI95,
+               col = c("red","blue","green")[avgday.indiv$MigStatus])
+scatter.smooth(avgde.no0$AvgDayDE ~ avgde.no0$VI95)
+
+scatter.smooth(avgde.no0$AvgDayDE ~ avgde.no0$VI95)
+scatter.smooth(log10(avgde.no0$AvgDayDE) ~ avgde.no0$VI95)
+
+
 # hist of VI95
 par(mfrow=c(1,1))
 hist(avgday.indiv$VI95)
-# basically normal other than the clump
+hist(ndays.no0$VI95)
+hist(log10(ndays.no0$VI95))
+hist(mignute.ndays$nAdequate)
+hist(avgday$AvgDayDE)
 
+# exploring migstatus and age
+scatter.smooth(mignute.ndays$VI95 ~ mignute.ndays$Age)
+# no obvious relationship
 
 ######################################
 ####  Actual presentation graphs  ####

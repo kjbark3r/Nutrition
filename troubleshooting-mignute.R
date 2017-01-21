@@ -176,3 +176,100 @@ gpie <- ggplot(piedat,
                aes(x="", y=Prop, fill=MigStatus)) +
   coord_polar("y", start=0)
 #eh screw it, i'll just throw piedat into excel
+
+
+########################
+# subsetting only lactating females for body condition ####
+
+lac <- ifbf.nona %>%
+  filter(LactStatus == "Yes")
+ifbf.lac <- ggplot(data = lac, 
+           aes(x = MigStatus, y = IFBF)) +
+           geom_boxplot(aes(fill = MigStatus)) +
+           labs(title = "IFBF")
+# no actual switchers in this analysis
+# but some elk classified intermed in one yr but not another
+# changing to make them classified as res/mig
+# and not be counted for 2 data points
+# stand by while i slaughter my sample size
+test <- lac %>%
+  group_by(AnimalID) %>%
+  distinct(IFBF) %>%
+  ungroup()
+# shit, going down to 10.
+# looking anyway out of curiosity
+test <- lac %>%
+  group_by(AnimalID) %>%
+  distinct(MigStatus) %>%
+  ungroup() %>%
+  mutate(NewStatus = ifelse(AnimalID == 140040, "Migrant", 
+                     ifelse(AnimalID == 140120, "Migrant",
+                     ifelse(AnimalID == 140400, "Resident",
+                     ifelse(AnimalID == 140960, "Resident",
+                     ifelse(AnimalID == 141060, "Resident",
+                            paste(MigStatus))))))) %>%
+  dplyr::select(-MigStatus) %>%
+  left_join(ifbf.nona, by = "AnimalID") %>%
+  dplyr::select(AnimalID, NewStatus, IFBF) %>%
+  distinct() %>%
+  transform(NewStatus = factor(NewStatus,
+                        levels = c("Resident",
+                                   "Intermediate",
+                                   "Migrant"),
+                            ordered = TRUE)) 
+(ifbf.lac <- ggplot(data = test, 
+           aes(x = NewStatus, y = IFBF)) +
+           geom_boxplot(aes(fill = NewStatus)) +
+           labs(title = "IFBF - Corrected"))
+# compare uncorrected to corrected
+grid.arrange(ifbf, ifbf.lac, nrow=2)
+# essentially the same; removed some outliers
+# running stats on corrected
+ifbf2 <- aov(IFBF ~ NewStatus, data = test)
+summary(ifbf2)
+# sooo not significant
+
+
+########################
+# subsetting only nonlactating females for body condition ####
+
+nolac <- ifbf.nona %>%
+  filter(LactStatus == "No")
+test2 <- nolac %>%
+  group_by(AnimalID) %>%
+  distinct(IFBF) %>%
+  ungroup()
+View(test2)
+#27, sweet
+test2 <- nolac %>%
+  group_by(AnimalID) %>%
+  distinct(MigStatus) %>%
+  ungroup() %>%
+  mutate(NewStatus = ifelse(AnimalID == 140050, "Resident", 
+                     ifelse(AnimalID == 140060, "Resident",
+                     ifelse(AnimalID == 140100, "Resident",
+                     ifelse(AnimalID == 140560, "Migrant",
+                     ifelse(AnimalID == 140630, "Resident",
+                     ifelse(AnimalID == 140710, "Resident",
+                     ifelse(AnimalID == 140850, "Migrant",
+                     ifelse(AnimalID == 140910, "Migrant",
+                     ifelse(AnimalID == 140940, "Resident",
+                     ifelse(AnimalID == 140980, "Migrant",
+                     ifelse(AnimalID == 141080, "Resident",
+                     ifelse(AnimalID == 141100, "Resident",
+                     ifelse(AnimalID == 141490, "Resident",
+                            paste(MigStatus))))))))))))))) %>%
+  dplyr::select(-MigStatus) %>%
+  left_join(ifbf.nona, by = "AnimalID") %>%
+  dplyr::select(AnimalID, NewStatus, IFBF) %>%
+  distinct() %>%
+  transform(NewStatus = factor(NewStatus,
+                        levels = c("Resident",
+                                   "Intermediate",
+                                   "Migrant"),
+                            ordered = TRUE)) 
+ifbf.nolac <- ggplot(data = test2, 
+           aes(x = NewStatus, y = IFBF)) +
+           geom_boxplot(aes(fill = NewStatus)) +
+           labs(title = "IFBF Non-lactators")
+grid.arrange(ifbf.lac, ifbf.nolac, nrow=2)
