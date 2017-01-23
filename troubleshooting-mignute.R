@@ -273,3 +273,60 @@ ifbf.nolac <- ggplot(data = test2,
            geom_boxplot(aes(fill = NewStatus)) +
            labs(title = "IFBF Non-lactators")
 grid.arrange(ifbf.lac, ifbf.nolac, nrow=2)
+
+########################
+# checking whether DE differed much before study ####
+# based on the predictive covariates that change year to year
+
+library(raster)
+
+#precip
+precip13 <- raster("../Vegetation/writtenrasters/orig/2012-2013data/precip_2013.tif")
+precip14 <- raster("../Vegetation/writtenrasters/covs2014/precip_14.tif")
+precip15 <- raster("../Vegetation/writtenrasters/covs2015/precip_15.tif")
+# match extents
+precip13 <- crop(precip13, extent(precip14))
+precip13 <- resample(precip13, precip14, "ngb")
+summary(precip13)
+summary(precip14)
+par(mfrow=c(3,1))
+plot(precip13, main = "2013"); plot(precip14, main = "2014")
+plot(precip15, main = "2015")
+# precip more similar 2013-2014 than 2013-2015 or 2014-2015
+
+# ndvi_amp
+ndvi13 <- raster("../Vegetation/writtenrasters/orig/2012-2013data/ndvi_amp_2013.tif")
+ndvi14 <- raster("../Vegetation/writtenrasters/covs2014/ndvi_amp_14.tif")
+ndvi15 <- raster("../Vegetation/writtenrasters/covs2015/ndvi_amp_15.tif")
+# match extents
+ndvi13 <- crop(ndvi13, extent(ndvi14))
+ndvi13 <- resample(ndvi13, ndvi14, "ngb")
+par(mfrow=c(3,1))
+plot(ndvi13, main = "2013"); plot(ndvi14, main = "2014")
+plot(ndvi15, main = "2015")
+summary(ndvi13)
+summary(ndvi14)
+# ok this does look pretty different
+# backcasting nute to 2013 to see whether diff ndvi_amps really change de
+# whew, no big effect on actual nute
+# (see de_model_backcast2013.R for details)
+
+
+########################################################################
+########################################################################
+
+# CUT CODE ####
+
+
+# anova: ifbf of all elk
+ifbf <- aov(IFBF ~ MigStatus, data = ifbf.nona)
+summary(ifbf)
+#insig
+
+# anova: ifbf of lactators only
+ifbf2 <- aov(IFBF ~ NewStatus, data = lac)
+summary(ifbf2)
+
+# anova: ifbf of nonlactators only
+ifbf3 <- aov(IFBF ~ NewStatus, data = nolac)
+summary(ifbf3)

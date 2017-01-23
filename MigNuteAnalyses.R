@@ -31,7 +31,7 @@ rm(wd_workcomp, wd_laptop)
 # ORIGINAL DATA (from MigrationNutrition.R) #
 
 # average DE exposure per indiv per day
-mignute.avg <- mignute.avg %>% #read.csv("mig-avgDE.csv") %>%
+mignute.avg <- read.csv("mig-avgDE.csv") %>%
   within(Date <- as.POSIXlt(Date, format = "%Y-%m-%d")) %>%
   transform(MigStatus = factor(MigStatus,
                         levels = c("Resident",
@@ -41,7 +41,7 @@ mignute.avg <- mignute.avg %>% #read.csv("mig-avgDE.csv") %>%
 mignute.avg$DOY <- mignute.avg$Date$yday #day of year
 
 # number days exposure to each nutrition category per indiv
-mignute.ndays <- mignute.ndays %>% #read.csv("mig-ndaysDE.csv") %>%
+mignute.ndays <- read.csv("mig-ndaysDE.csv") %>%
   transform(MigStatus = factor(MigStatus,
                         levels = c("Resident",
                                    "Intermediate",
@@ -97,6 +97,7 @@ ppn <- mignute.avg %>%
 # data for lac/nonlac comparison
 ifbf.lac <- filter(mignute.ndays, !is.na(IFBF),
                    LactStatus == "Yes" | LactStatus == "No")
+bod <- read.csv(file = "bodycondition.csv")
   
 # LACTATING ELK body condition
 lac <- ifbf.lac %>%
@@ -110,8 +111,8 @@ lac <- ifbf.lac %>%
                      ifelse(AnimalID == 140960, "Resident",
                      ifelse(AnimalID == 141060, "Resident",
                             paste(MigStatus))))))) %>%
+  left_join(ifbf.lac) %>%
   dplyr::select(-MigStatus) %>%
-  left_join(ifbf.nona, by = "AnimalID") %>%
   dplyr::select(AnimalID, NewStatus, IFBF) %>%
   distinct() %>%
   transform(NewStatus = factor(NewStatus,
@@ -141,7 +142,7 @@ nolac <- ifbf.lac %>%
                      ifelse(AnimalID == 141490, "Resident",
                             paste(MigStatus))))))))))))))) %>%
   dplyr::select(-MigStatus) %>%
-  left_join(ifbf.nona, by = "AnimalID") %>%
+  left_join(ifbf.lac, by = "AnimalID") %>%
   dplyr::select(AnimalID, NewStatus, IFBF) %>%
   distinct() %>%
   transform(NewStatus = factor(NewStatus,
@@ -151,9 +152,9 @@ nolac <- ifbf.lac %>%
                             ordered = TRUE))
 
 alllac <- bind_rows(lac, nolac) %>%
-  select(-IFBF) %>% #avoid duplicates
+  dplyr::select(-IFBF) %>% #avoid duplicates
   left_join(bod, by = "AnimalID") %>% #add body condition
-  select(AnimalID, NewStatus, IFBF, preg_pspb, LactStatus) %>%
+  dplyr::select(AnimalID, NewStatus, IFBF, preg_pspb, LactStatus) %>%
   filter(LactStatus == "Yes" | LactStatus == "No") %>%
   transform(LactStatus = factor(LactStatus,
                                 levels = c("Yes", "No"),
@@ -345,12 +346,75 @@ grid.arrange(ifbf.lac, ifbf.nolac, nrow=1, ncol=2)
 ####  Stats  ####
 #################
 
-######################################
-## general summary stats ##
 
-# ifbf, lactating and non-lactating
-i.lm <- aov(IFBF ~ LactStatus + NewStatus, data = alllac)
-summary(i.lm)
+###############################################
+## diffs in FQ exposure per migratory status ##
+
+
+## NDAYS EXPOSURE ##
+
+# ndays exposure adequate fq
+nadfq <- aov(nAdequate ~ MigStatus, data = mignute.ndays)
+summary(nadfq)
+#super significant
+#checking pairwise comparisons
+
+  # bonferroni multiple comparison: ndaysad
+  nadb <- pairwise.t.test(x = mignute.ndays$nAdequate, 
+                          g = mignute.ndays$MigStatus, 
+                          p.adjust.method = "bonf")
+  nadb
+  #says residents and intermediates not significantly diff (barely)
+  #migrants significantly diff from both
+  
+  # holm multiple comparison: ndaysad
+  nadh <- pairwise.t.test(x = mignute.ndays$nAdequate, 
+                          g = mignute.ndays$MigStatus, 
+                          p.adjust.method = "holm")
+  nadh
+  #this says all 3 are different
+  
+  # tukey hsd multiple comparison - ndays de
+  nadt <- TukeyHSD(aov(nAdequate ~ MigStatus, data = mignute.ndays))
+  nadt
+  #says residents and intermediates not significantly diff (barely)
+  #migrants significantly diff from both
+
+  
+## AVG DE EXPOSURE PER DAY ##
+
+# avg de exposure per day
+aadfq <- aov(AvgDayDE ~ MigStatus, data = avgday.indiv)
+summary(aadfq)
+#super significant
+#checking pairwise comparisons
+
+  # bonferroni multiple comparison: avgde
+  aadb <- pairwise.t.test(x = avgday.indiv$AvgDayDE, 
+                          g = avgday.indiv$MigStatus, 
+                          p.adjust.method = "bonf")
+  aadb
+  #says residents and intermediates not significantly diff
+  #migrants significantly diff from both
+
+  # holm multiple comparison: avgde
+  aadh <- pairwise.t.test(x = avgday.indiv$AvgDayDE, 
+                          g = avgday.indiv$MigStatus, 
+                          p.adjust.method = "holm")
+  aadh
+  #says all 3 are different 
+
+  # tukey hsd multiple comparison - avgde
+  aadt <- TukeyHSD(aov(AvgDayDE ~ MigStatus, data = avgday.indiv))
+  aadt
+  #says residents and intermediates not significantly diff (barely)
+  #migrants significantly diff from both
+  
+
+# ok, going with no sig diff (/weak evidence for diff)
+## between residents and intermediates
+### (due to agreement bt bonferroni and tukey)
+# definite significant diff bt migrants and both other grps
 
 
 ########################################
@@ -358,77 +422,13 @@ summary(i.lm)
 
 # mixed effects anova - lactstat random; migstatus fixed
 mx <- lmer(IFBF ~ NewStatus + (1|LactStatus), data = alllac)
-summary(mx)
+mx
+confint(mx)
 
+# confidence intervals overlap 0, so no dig diff
 
-# anova: ifbf
-ifbf <- aov(IFBF ~ MigStatus, data = ifbf.nona)
-summary(ifbf)
-#insig
-
-# anova: ifbf of lactators only
-ifbf2 <- aov(IFBF ~ NewStatus, data = lac)
-summary(ifbf2)
-
-# anova: ifbf of nonlactators only
-ifbf3 <- aov(IFBF ~ NewStatus, data = nolac)
-summary(ifbf3)
-
-# correct for lactation by adding it as covariate in anova?
-
-# anova: ndays exposure adequate fq
-nadfq <- aov(nAdequate ~ MigStatus, data = mignute.ndays)
-summary(nadfq)
-#super sig
-# double-check meets normality assumption
-hist(resid(nadfq))
-
-# anova: avg de exposure
-aadfq <- aov(AvgDayDE ~ MigStatus, data = avgday.indiv)
-summary(aadfq)
-#super sig
-# double-check meets normality assumption
-hist(resid(aadfq))
-
-# bonferroni multiple comparison: ndaysad
-nadb <- pairwise.t.test(x = mignute.ndays$nAdequate, 
-                        g = mignute.ndays$MigStatus, 
-                        p.adjust.method = "bonf")
-nadb
-# residents and intermediates not significantly diff
-# migrants significantly diff from both
-
-# bonferroni multiple comparison: avgde
-aadb <- pairwise.t.test(x = avgday.indiv$AvgDayDE, 
-                        g = avgday.indiv$MigStatus, 
-                        p.adjust.method = "bonf")
-aadb
-# ditto above
-
-# holm multiple comparison: ndaysad
-nadh <- pairwise.t.test(x = mignute.ndays$nAdequate, 
-                        g = mignute.ndays$MigStatus, 
-                        p.adjust.method = "holm")
-nadh
-# this says all 3 are different (res-inter p=0.028)
-
-# holm multiple comparison: avgde
-aadh <- pairwise.t.test(x = avgday.indiv$AvgDayDE, 
-                        g = avgday.indiv$MigStatus, 
-                        p.adjust.method = "holm")
-aadh
-# this also says all 3 are different (res-inter p=0.030) 
-
-# tukey hsd multiple comparison - ndays de
-nadt <- TukeyHSD(aov(nAdequate ~ MigStatus, data = mignute.ndays))
-nadt
-
-# tukey hsd multiple comparison - avgde
-aadt <- TukeyHSD(aov(AvgDayDE ~ MigStatus, data = avgday.indiv))
-aadt
-
-# ok, going with no sig diff (slash weak evidence for diff)
-## due to agreement bt bonferroni and tukey
+# just looking at average IFBF correcting for lact
+il <- glm(IFBF ~ LactStatus, data = alllac)
 
 ######################################
 ## diffs migstatus ppns 2014 - 2015 ##
@@ -446,4 +446,4 @@ ppns <- migstatus %>%
   ungroup()
 write.csv(ppns, file = "migstatus-ppns-per-yr.csv", row.names=F)  
   
-
+# these look essentially the same
