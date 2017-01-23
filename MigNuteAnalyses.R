@@ -13,10 +13,11 @@
 # PACKAGES #
 
 library(dplyr)
+library(tidyr)
 library(ggplot2) # graphics
 library(gridExtra) # >1 plot per display
 library(pscl)
-
+library(lme4)
 
 # WORKING DIRECTORY #
 
@@ -30,7 +31,7 @@ rm(wd_workcomp, wd_laptop)
 # ORIGINAL DATA (from MigrationNutrition.R) #
 
 # average DE exposure per indiv per day
-mignute.avg <- read.csv("mig-avgDE.csv") %>%
+mignute.avg <- mignute.avg %>% #read.csv("mig-avgDE.csv") %>%
   within(Date <- as.POSIXlt(Date, format = "%Y-%m-%d")) %>%
   transform(MigStatus = factor(MigStatus,
                         levels = c("Resident",
@@ -40,7 +41,7 @@ mignute.avg <- read.csv("mig-avgDE.csv") %>%
 mignute.avg$DOY <- mignute.avg$Date$yday #day of year
 
 # number days exposure to each nutrition category per indiv
-mignute.ndays <- read.csv("mig-ndaysDE.csv") %>%
+mignute.ndays <- mignute.ndays %>% #read.csv("mig-ndaysDE.csv") %>%
   transform(MigStatus = factor(MigStatus,
                         levels = c("Resident",
                                    "Intermediate",
@@ -93,6 +94,70 @@ ppn <- mignute.avg %>%
             ppnInad = nInad/nTotal) %>%
   ungroup()
 
+# data for lac/nonlac comparison
+ifbf.lac <- filter(mignute.ndays, !is.na(IFBF),
+                   LactStatus == "Yes" | LactStatus == "No")
+  
+# LACTATING ELK body condition
+lac <- ifbf.lac %>%
+  filter(LactStatus == "Yes")%>%
+  group_by(AnimalID) %>%
+  distinct(MigStatus) %>%
+  ungroup() %>%
+  mutate(NewStatus = ifelse(AnimalID == 140040, "Migrant", 
+                     ifelse(AnimalID == 140120, "Migrant",
+                     ifelse(AnimalID == 140400, "Resident",
+                     ifelse(AnimalID == 140960, "Resident",
+                     ifelse(AnimalID == 141060, "Resident",
+                            paste(MigStatus))))))) %>%
+  dplyr::select(-MigStatus) %>%
+  left_join(ifbf.nona, by = "AnimalID") %>%
+  dplyr::select(AnimalID, NewStatus, IFBF) %>%
+  distinct() %>%
+  transform(NewStatus = factor(NewStatus,
+                        levels = c("Resident",
+                                   "Intermediate",
+                                   "Migrant"),
+                            ordered = TRUE))
+
+# NON-LACTATING ELK body condition
+nolac <- ifbf.lac %>%
+  filter(LactStatus == "No")%>%
+  group_by(AnimalID) %>%
+  distinct(MigStatus) %>%
+  ungroup() %>%
+  mutate(NewStatus = ifelse(AnimalID == 140050, "Resident", 
+                     ifelse(AnimalID == 140060, "Resident",
+                     ifelse(AnimalID == 140100, "Resident",
+                     ifelse(AnimalID == 140560, "Migrant",
+                     ifelse(AnimalID == 140630, "Resident",
+                     ifelse(AnimalID == 140710, "Resident",
+                     ifelse(AnimalID == 140850, "Migrant",
+                     ifelse(AnimalID == 140910, "Migrant",
+                     ifelse(AnimalID == 140940, "Resident",
+                     ifelse(AnimalID == 140980, "Migrant",
+                     ifelse(AnimalID == 141080, "Resident",
+                     ifelse(AnimalID == 141100, "Resident",
+                     ifelse(AnimalID == 141490, "Resident",
+                            paste(MigStatus))))))))))))))) %>%
+  dplyr::select(-MigStatus) %>%
+  left_join(ifbf.nona, by = "AnimalID") %>%
+  dplyr::select(AnimalID, NewStatus, IFBF) %>%
+  distinct() %>%
+  transform(NewStatus = factor(NewStatus,
+                        levels = c("Resident",
+                                   "Intermediate",
+                                   "Migrant"),
+                            ordered = TRUE))
+
+alllac <- bind_rows(lac, nolac) %>%
+  select(-IFBF) %>% #avoid duplicates
+  left_join(bod, by = "AnimalID") %>% #add body condition
+  select(AnimalID, NewStatus, IFBF, preg_pspb, LactStatus) %>%
+  filter(LactStatus == "Yes" | LactStatus == "No") %>%
+  transform(LactStatus = factor(LactStatus,
+                                levels = c("Yes", "No"),
+                                ordered = TRUE))
 
 ###################
 ####  Visuals  ####
@@ -144,7 +209,7 @@ avgde <- ggplot(data = avgday.indiv,
        geom_boxplot(aes(fill = MigStatus)) +
        labs(title = "Avg Daily DE Exposure")+
        geom_hline(yintercept=2.75)
-ifbf.nona <- filter(mignute.ndays, !is.na(IFBF))
+
 ifbf <- ggplot(data = mignute.ndays, 
            aes(x = MigStatus, y = IFBF)) +
            geom_boxplot(aes(fill = MigStatus)) +
@@ -258,6 +323,17 @@ hist(avgday$AvgDayDE)
 scatter.smooth(mignute.ndays$VI95 ~ mignute.ndays$Age)
 # no obvious relationship
 
+# ifbf - lactators and non-lactators
+ifbf.lac <- ggplot(data = lac, 
+           aes(x = NewStatus, y = IFBF)) +
+           geom_boxplot(aes(fill = NewStatus)) +
+           labs(title = "Lactator IFBF")
+ifbf.nolac <- ggplot(data = nolac, 
+           aes(x = NewStatus, y = IFBF)) +
+           geom_boxplot(aes(fill = NewStatus)) +
+           labs(title = "Non-lactator IFBF")
+grid.arrange(ifbf.lac, ifbf.nolac, nrow=1, ncol=2)
+
 ######################################
 ####  Actual presentation graphs  ####
 ######################################
@@ -269,10 +345,36 @@ scatter.smooth(mignute.ndays$VI95 ~ mignute.ndays$Age)
 ####  Stats  ####
 #################
 
+######################################
+## general summary stats ##
+
+# ifbf, lactating and non-lactating
+i.lm <- aov(IFBF ~ LactStatus + NewStatus, data = alllac)
+summary(i.lm)
+
+
+########################################
+## diffs in ifbf per migratory status ##
+
+# mixed effects anova - lactstat random; migstatus fixed
+mx <- lmer(IFBF ~ NewStatus + (1|LactStatus), data = alllac)
+summary(mx)
+
+
 # anova: ifbf
 ifbf <- aov(IFBF ~ MigStatus, data = ifbf.nona)
 summary(ifbf)
 #insig
+
+# anova: ifbf of lactators only
+ifbf2 <- aov(IFBF ~ NewStatus, data = lac)
+summary(ifbf2)
+
+# anova: ifbf of nonlactators only
+ifbf3 <- aov(IFBF ~ NewStatus, data = nolac)
+summary(ifbf3)
+
+# correct for lactation by adding it as covariate in anova?
 
 # anova: ndays exposure adequate fq
 nadfq <- aov(nAdequate ~ MigStatus, data = mignute.ndays)
@@ -280,7 +382,6 @@ summary(nadfq)
 #super sig
 # double-check meets normality assumption
 hist(resid(nadfq))
-
 
 # anova: avg de exposure
 aadfq <- aov(AvgDayDE ~ MigStatus, data = avgday.indiv)
@@ -329,5 +430,20 @@ aadt
 # ok, going with no sig diff (slash weak evidence for diff)
 ## due to agreement bt bonferroni and tukey
 
-# relationship bt avgde and vi95
+######################################
+## diffs migstatus ppns 2014 - 2015 ##
+
+# compare proportion resident/intermediate/migrant
+# in each year
+
+ppns <- migstatus %>%
+  mutate(Year = ifelse(grepl("-14", IndivYr), 2014, 2015)) %>%
+  select(Year, MigStatus) %>%
+  group_by(Year) %>%
+  summarize(ppnRes = length(which(MigStatus == "Resident"))/n(),
+            ppnInt = length(which(MigStatus == "Intermediate"))/n(),
+            ppnMig = length(which(MigStatus == "Migrant"))/n()) %>%
+  ungroup()
+write.csv(ppns, file = "migstatus-ppns-per-yr.csv", row.names=F)  
+  
 

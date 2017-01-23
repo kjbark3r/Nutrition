@@ -139,8 +139,7 @@ latlong <- CRS("+init=epsg:4326") # WGS84
 # 2014
 smr14 <- locs %>%
   filter(Sex == "Female")  %>% # not using males for nutrition analysis
-  subset(between(Date, as.Date("2014-07-01"), as.Date("2014-08-31"))) %>%
-  subset(Time <= 800 | Time >= 2000) #remove common bedding times
+  subset(between(Date, as.Date("2014-07-01"), as.Date("2014-08-31"))) 
 xy14 <- data.frame("x" = smr14$Long, "y" = smr14$Lat) # pull coords
 spdf.ll14 <- SpatialPointsDataFrame(xy14, smr14, proj4string = latlong) #spatial
 spdf14 <- spTransform(spdf.ll14, de14@crs) # match projection of de tifs
@@ -156,8 +155,7 @@ nute14 <- ext14 %>%
 # 2015
 smr15 <- locs %>%
   filter(Sex == "Female")  %>% # not using males for nutrition analysis
-  subset(between(Date, as.Date("2015-07-01"), as.Date("2015-08-31"))) %>%
-  subset(Time <= 800 | Time >= 2000) #remove mostly bedding locations
+  subset(between(Date, as.Date("2015-07-01"), as.Date("2015-08-31")))
 xy15 <- data.frame("x" = smr15$Long, "y" = smr15$Lat)
 spdf.ll15 <- SpatialPointsDataFrame(xy15, smr15, proj4string = latlong) #spatial
 spdf15 <- spTransform(spdf.ll15, de15@crs) # match projection of de tifs
@@ -201,14 +199,14 @@ bod <- read.csv("bodycondition.csv")
 caploc <- read.csv("capture-locations.csv")
 
 # nutrition as average daily DE exposure
-mignutebod <- mig %>% 
+mignute.avg <- mig %>% 
   right_join(nute, by = "IndivYr") %>% #combine mig & nute
   filter(!is.na(MigRank)) %>% #remove ski hill elk
   left_join(bod, by = "AnimalID") #add body condition
-write.csv(mignutebod, file = "mig-avgDE.csv", row.names=F)
+#write.csv(mignutebod, file = "mig-avgDE.csv", row.names=F)
 
 # nutrition as number of days with each level of DE
-mignutebod2 <- nutedays %>%
+mignute.ndays <- nutedays %>%
   right_join(mig, by = "IndivYr") %>%
   left_join(bod, by = "AnimalID") 
-write.csv(mignutebod2, file = "mig-ndaysDE.csv", row.names=F)
+#write.csv(mignutebod2, file = "mig-ndaysDE.csv", row.names=F)
