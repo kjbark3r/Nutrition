@@ -306,11 +306,54 @@ plot(ndvi13, main = "2013"); plot(ndvi14, main = "2014")
 plot(ndvi15, main = "2015")
 summary(ndvi13)
 summary(ndvi14)
-# ok this does look pretty different
+# ok ndvi_amp does look pretty different
 # backcasting nute to 2013 to see whether diff ndvi_amps really change de
-# whew, no big effect on actual nute
 # (see de_model_backcast2013.R for details)
 
+
+########################
+# comparing migrant and resident FN ####
+# [hail mary. . .]
+
+fn <- read.csv("fecalnitrogen.csv") %>%
+  na.omit()
+fn$Mig <- tolower(fn$Mig)
+boxplot(fn$PctN ~ fn$Mig)
+
+fnres <- subset(fn, Mig == "resident")
+fnmig <- subset(fn, Mig == "migratory")
+
+fnt <- t.test(fnres$PctN, fnmig$PctN)
+fnt
+# migrant tends to be a little higher
+# but not significantly so
+# fucking cool
+
+
+########################
+# looking at HR size and density
+
+par(mfrow=c(1,2))
+plot(subset(hrs, grepl("14$", hrs@data$id)), main = "2014")
+plot(subset(hrs, grepl("15$", hrs@data$id)), main = "2015")
+
+# attempting to add migstatus
+
+hrs@data$IndivYr <- hrs@data$id
+hrs@data <- left_join(hrs@data, migstatus, by = "IndivYr")
+# hoooly shit it worked! dplyr ftw
+
+par(mfrow=c(1,2))
+plot(subset(hrs, grepl("14$", hrs@data$id)), main = "2014",
+     border = hrs@data$MigStatus)
+plot(subset(hrs, grepl("15$", hrs@data$id)), main = "2015",
+     border = hrs@data$MigStatus)
+
+# seems kinda weird. checking out in arcmap
+library(rgdal)
+writeOGR(hrs, dsn = "../../NSERP/GIS/aOrganized/Shapefiles", 
+         layer = "SummmerHRs", driver = "ESRI Shapefile",
+         overwrite = TRUE)
 
 ########################################################################
 ########################################################################

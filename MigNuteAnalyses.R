@@ -31,7 +31,7 @@ rm(wd_workcomp, wd_laptop)
 # ORIGINAL DATA (from MigrationNutrition.R) #
 
 # average DE exposure per indiv per day
-mignute.avg <- read.csv("mig-avgDE.csv") %>%
+mignute.avg <- read.csv("mig-avgforage.csv") %>%
   within(Date <- as.POSIXlt(Date, format = "%Y-%m-%d")) %>%
   transform(MigStatus = factor(MigStatus,
                         levels = c("Resident",
@@ -53,24 +53,39 @@ mignute.ndays <- read.csv("mig-ndaysDE.csv") %>%
 # to join with new df's created later
 migstatus <- read.csv("migstatus.csv")
 
+# fecal nitrogen
+fn <- read.csv("fecalnitrogen.csv") %>%
+  within(Mig <- ifelse(Mig == "Migratory", "Migrant",
+                      "Non-Migrant")) %>%
+  transform(Mig = factor(Mig, levels = c("Non-Migrant",
+                         "Migrant"), ordered = TRUE)) %>%
+  within(Date <- as.POSIXlt(Date, format = "%m/%d/%Y"))
+fn$DOY <- fn$Date$yday
+
 # MAKING NEW DATAFRAMES FROM ORIGINAL DATA #
 
-# PER MIG STATUS average DE value per day
+# PER MIG STATUS average forage values per day
 avgday <- mignute.avg %>%
   dplyr::select(-Date) %>%
   group_by(DOY, MigStatus) %>%
-  summarise(AvgDayDE = mean(AvgDE, na.rm=T)) %>%
+  summarise(AvgDayDE = mean(AvgDE, na.rm=T),
+            AvgDayGHerb = mean(AvgGHerb, na.rm=T),
+            AvgDayGShrub = mean(AvgGShrub, na.rm=T),
+            AvgDayGForage = mean(AvgGForage, na.rm=T)) %>%
   ungroup() %>%
   mutate(DEclass = ifelse(AvgDayDE >= 2.9, "Excellent", 
                    ifelse(AvgDayDE >= 2.75 & AvgDayDE < 2.9, "Good",
                    ifelse(AvgDayDE > 2.40 & AvgDayDE < 2.75, "Marginal",
                           "Poor")))) 
 
-# PER INDIV average DE value per day
+# PER INDIV average forage values per day
 avgday.indiv <- mignute.avg %>%
   dplyr::select(-Date) %>%
   group_by(IndivYr) %>%
-  summarise(AvgDayDE = mean(AvgDE, na.rm=T)) %>%
+  summarise(AvgDayDE = mean(AvgDE, na.rm=T),
+            AvgDayGHerb = mean(AvgGHerb, na.rm=T),
+            AvgDayGShrub = mean(AvgGShrub, na.rm=T),
+            AvgDayGForage = mean(AvgGForage, na.rm=T)) %>%
   ungroup() %>%
   mutate(DEclass = ifelse(AvgDayDE >= 2.9, "Excellent", 
                    ifelse(AvgDayDE >= 2.75 & AvgDayDE < 2.9, "Good",
@@ -203,20 +218,62 @@ inad <- ggplot(data = mignute.ndays,
             x = "", y = "Number of Days Exposure")
 grid.arrange(ad, inad, nrow=2)
 
-# avg de exposure by mig rank, AND
-# IFBF - res/intermed/mig 
+# avg de exposure by mig rank
 avgde <- ggplot(data = avgday.indiv, 
        aes(x = MigStatus, y = AvgDayDE)) +
        geom_boxplot(aes(fill = MigStatus)) +
        labs(title = "Avg Daily DE Exposure")+
        geom_hline(yintercept=2.75)
+avgde
 
+# g herbaceous forage exposure by mig rank
+avggh <- ggplot(data = avgday.indiv, 
+       aes(x = MigStatus, y = AvgDayGHerb)) +
+       geom_boxplot(aes(fill = MigStatus)) +
+       labs(title = "Avg Daily Herb Abundance")
+avggh
+
+# g shrub forage exposure by mig rank
+avggs <- ggplot(data = avgday.indiv, 
+       aes(x = MigStatus, y = AvgDayGShrub)) +
+       geom_boxplot(aes(fill = MigStatus)) +
+       labs(title = "Avg Daily Shrub Abundance")
+avggs
+
+# total g forage exposure by mig rank
+avggf <- ggplot(data = avgday.indiv, 
+       aes(x = MigStatus, y = AvgDayGForage)) +
+       geom_boxplot(aes(fill = MigStatus)) +
+       labs(title = "Avg Daily Forage Abundance")
+avggf
+
+# all avg daily forage plots together
+grid.arrange(avggh, avggs, avggf, nrow=3)
+
+# IFBF - res/intermed/mig 
 ifbf <- ggplot(data = mignute.ndays, 
            aes(x = MigStatus, y = IFBF)) +
            geom_boxplot(aes(fill = MigStatus)) +
            labs(title = "IFBF")
-grid.arrange(avgde, ifbf, nrow=2)
- 
+ifbf
+
+# fecal nitrogen - mig vs non-mig 
+fnp <- ggplot(data = fn,
+             aes(x = Mig, y = PctN)) +
+             geom_boxplot(aes(fill = Mig)) +
+             labs(title = "Fecal Nitrogen")
+fnp
+
+#ifbf + fecal n
+grid.arrange(ifbf, fn, nrow=(2))
+
+# home range area
+hra <- ggplot(data = mignute.ndays, 
+           aes(x = MigStatus, y = HRarea)) +
+           geom_boxplot(aes(fill = MigStatus)) +
+           labs(title = "Home Range Area (m^2)")
+hra
+
 # timeplot DE by day
 tp <-  ggplot(avgday, 
               aes(DOY, AvgDayDE, colour = MigStatus)) +
@@ -224,6 +281,28 @@ tp <-  ggplot(avgday,
               geom_point() +
               geom_hline(yintercept=2.75)
 tp
+
+# timeplot FN by day
+tpf <-  ggplot(data= fn, 
+              aes(DOY, PctN, colour = Mig)) +
+              geom_line() +
+              geom_point() 
+tpf
+
+
+# timeplots FN by day - split by year
+##bc analyzed by different labs
+tpf14 <- ggplot(data=subset(fn, SamplingYear == 1),
+              aes(DOY, PctN, colour = Mig)) +
+              geom_line() +
+              geom_point() +
+              labs(title = "Fecal N 2014")
+tpf15 <- ggplot(data=subset(fn, SamplingYear == 2),
+              aes(DOY, PctN, colour = Mig)) +
+              geom_line() +
+              geom_point() +
+              labs(title = "Fecal N 2015")
+grid.arrange(tpf14, tpf15, nrow = 2)
 
 # add hist - ppn res/int/mig with adequate fq per day
 tp + geom_bar(data = ppn,
@@ -339,8 +418,20 @@ grid.arrange(ifbf.lac, ifbf.nolac, nrow=1, ncol=2)
 ####  Actual presentation graphs  ####
 ######################################
 
+de14 <- raster("../Vegetation/DE2014.tif")
+par(mfrow = c(1,1))
+plot(de14, main = "Forage Quality (kcal/m^2)")
 
+gherb <- raster("../Vegetation/gherb2014.tif")
+gshrub <- raster("../Vegetation/gshrub2014.tif")
 
+foo <- function(a, b) {
+  newval <- (a+b)/10000
+  return(newval)
+}
+
+gfor <- overlay(gherb, gshrub, fun = "foo")
+plot(gfor, main = "Forage Quantity (g/m^2)")
 
 #################
 ####  Stats  ####
@@ -416,6 +507,37 @@ summary(aadfq)
 ### (due to agreement bt bonferroni and tukey)
 # definite significant diff bt migrants and both other grps
 
+########################################
+## diffs in abundance per migratory status ##
+  
+## AVG FORAGE ABUNDANCE PER DAY ##
+
+# avg de exposure per day
+afa <- aov(AvgDayGForage ~ MigStatus, data = avgday.indiv)
+summary(afa)
+#sig
+
+
+  # bonferroni multiple comparison: avgde
+  aadb <- pairwise.t.test(x = avgday.indiv$AvgDayGForage, 
+                          g = avgday.indiv$MigStatus, 
+                          p.adjust.method = "bonf")
+  aadb
+  #only sig diff is mig vs res
+
+  # holm multiple comparison: avgde
+  aadh <- pairwise.t.test(x = avgday.indiv$AvgDayGForage, 
+                          g = avgday.indiv$MigStatus, 
+                          p.adjust.method = "holm")
+  aadh
+  #only sig diff is mig vs res 
+
+  # tukey hsd multiple comparison - avgde
+  aadt <- TukeyHSD(aov(AvgDayGForage ~ MigStatus, data = avgday.indiv))
+  aadt
+  #only sig diff is mig vs res
+
+# conclusion: migrants are in areas with higher abundance than residents
 
 ########################################
 ## diffs in ifbf per migratory status ##
@@ -429,6 +551,7 @@ confint(mx)
 
 # just looking at average IFBF correcting for lact
 il <- glm(IFBF ~ LactStatus, data = alllac)
+il
 
 ######################################
 ## diffs migstatus ppns 2014 - 2015 ##
@@ -447,3 +570,30 @@ ppns <- migstatus %>%
 write.csv(ppns, file = "migstatus-ppns-per-yr.csv", row.names=F)  
   
 # these look essentially the same
+
+###############################################
+## diffs in home range area by mig status ##
+
+# hr area
+hr <- aov(HRarea ~ MigStatus, data = mignute.ndays)
+summary(hr)
+
+  # bonferroni multiple comparison: ndaysad
+  nadb <- pairwise.t.test(x = mignute.ndays$HRarea, 
+                          g = mignute.ndays$MigStatus, 
+                          p.adjust.method = "bonf")
+  nadb
+  #says residents and intermediates the same
+  #migrants significantly diff from both
+  
+  # holm multiple comparison: ndaysad
+  nadh <- pairwise.t.test(x = mignute.ndays$HRarea, 
+                          g = mignute.ndays$MigStatus, 
+                          p.adjust.method = "holm")
+  nadh
+  #ditto above
+  
+  # tukey hsd multiple comparison - ndays de
+  nadt <- TukeyHSD(aov(HRarea ~ MigStatus, data = mignute.ndays))
+  nadt
+  #double ditto
