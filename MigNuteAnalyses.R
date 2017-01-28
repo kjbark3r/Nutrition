@@ -55,9 +55,9 @@ migstatus <- read.csv("migstatus.csv")
 
 # fecal nitrogen
 fn <- read.csv("fecalnitrogen.csv") %>%
-  within(Mig <- ifelse(Mig == "Migratory", "Migrant",
-                      "Non-Migrant")) %>%
-  transform(Mig = factor(Mig, levels = c("Non-Migrant",
+  within(MigStatus <- ifelse(MigStatus == "Resident", "Non-Migrant",
+                             "Migrant")) %>%
+  transform(MigStatus = factor(MigStatus, levels = c("Non-Migrant",
                          "Migrant"), ordered = TRUE)) %>%
   within(Date <- as.POSIXlt(Date, format = "%m/%d/%Y"))
 fn$DOY <- fn$Date$yday
@@ -116,17 +116,11 @@ bod <- read.csv(file = "bodycondition.csv")
   
 # LACTATING ELK body condition
 lac <- ifbf.lac %>%
-  filter(LactStatus == "Yes")%>%
-  group_by(AnimalID) %>%
-  distinct(MigStatus) %>%
+  filter(LactStatus == "Yes") %>% 
+  arrange(IndivYr) %>% #make 2014 status 1st row for ea indiv
+  group_by(AnimalID) %>% #newstatus = 2014 migstatus
+  mutate(NewStatus = first(MigStatus)) %>%
   ungroup() %>%
-  mutate(NewStatus = ifelse(AnimalID == 140040, "Migrant", 
-                     ifelse(AnimalID == 140120, "Migrant",
-                     ifelse(AnimalID == 140400, "Resident",
-                     ifelse(AnimalID == 140960, "Resident",
-                     ifelse(AnimalID == 141060, "Resident",
-                            paste(MigStatus))))))) %>%
-  left_join(ifbf.lac) %>%
   dplyr::select(-MigStatus) %>%
   dplyr::select(AnimalID, NewStatus, IFBF) %>%
   distinct() %>%
@@ -138,26 +132,12 @@ lac <- ifbf.lac %>%
 
 # NON-LACTATING ELK body condition
 nolac <- ifbf.lac %>%
-  filter(LactStatus == "No")%>%
-  group_by(AnimalID) %>%
-  distinct(MigStatus) %>%
+  filter(LactStatus == "No") %>% 
+  arrange(IndivYr) %>% #make 2014 status 1st row for ea indiv
+  group_by(AnimalID) %>% #newstatus = 2014 migstatus
+  mutate(NewStatus = first(MigStatus)) %>%
   ungroup() %>%
-  mutate(NewStatus = ifelse(AnimalID == 140050, "Resident", 
-                     ifelse(AnimalID == 140060, "Resident",
-                     ifelse(AnimalID == 140100, "Resident",
-                     ifelse(AnimalID == 140560, "Migrant",
-                     ifelse(AnimalID == 140630, "Resident",
-                     ifelse(AnimalID == 140710, "Resident",
-                     ifelse(AnimalID == 140850, "Migrant",
-                     ifelse(AnimalID == 140910, "Migrant",
-                     ifelse(AnimalID == 140940, "Resident",
-                     ifelse(AnimalID == 140980, "Migrant",
-                     ifelse(AnimalID == 141080, "Resident",
-                     ifelse(AnimalID == 141100, "Resident",
-                     ifelse(AnimalID == 141490, "Resident",
-                            paste(MigStatus))))))))))))))) %>%
   dplyr::select(-MigStatus) %>%
-  left_join(ifbf.lac, by = "AnimalID") %>%
   dplyr::select(AnimalID, NewStatus, IFBF) %>%
   distinct() %>%
   transform(NewStatus = factor(NewStatus,
@@ -259,8 +239,8 @@ ifbf
 
 # fecal nitrogen - mig vs non-mig 
 fnp <- ggplot(data = fn,
-             aes(x = Mig, y = PctN)) +
-             geom_boxplot(aes(fill = Mig)) +
+             aes(x = MigStatus, y = PctN)) +
+             geom_boxplot(aes(fill = MigStatus)) +
              labs(title = "Fecal Nitrogen")
 fnp
 
@@ -284,7 +264,7 @@ tp
 
 # timeplot FN by day
 tpf <-  ggplot(data= fn, 
-              aes(DOY, PctN, colour = Mig)) +
+              aes(DOY, PctN, colour = MigStatus)) +
               geom_line() +
               geom_point() 
 tpf
@@ -292,13 +272,13 @@ tpf
 
 # timeplots FN by day - split by year
 ##bc analyzed by different labs
-tpf14 <- ggplot(data=subset(fn, SamplingYear == 1),
-              aes(DOY, PctN, colour = Mig)) +
+tpf14 <- ggplot(data=subset(fn, Year == 2014),
+              aes(DOY, PctN, colour = MigStatus)) +
               geom_line() +
               geom_point() +
               labs(title = "Fecal N 2014")
-tpf15 <- ggplot(data=subset(fn, SamplingYear == 2),
-              aes(DOY, PctN, colour = Mig)) +
+tpf15 <- ggplot(data=subset(fn, Year == 2015),
+              aes(DOY, PctN, colour = MigStatus)) +
               geom_line() +
               geom_point() +
               labs(title = "Fecal N 2015")
@@ -433,6 +413,7 @@ foo <- function(a, b) {
 gfor <- overlay(gherb, gshrub, fun = "foo")
 plot(gfor, main = "Forage Quantity (g/m^2)")
 
+
 #################
 ####  Stats  ####
 #################
@@ -463,7 +444,8 @@ summary(nadfq)
                           g = mignute.ndays$MigStatus, 
                           p.adjust.method = "holm")
   nadh
-  #this says all 3 are different
+  #says residents and intermediates not significantly diff (barely)
+  #migrants significantly diff from both
   
   # tukey hsd multiple comparison - ndays de
   nadt <- TukeyHSD(aov(nAdequate ~ MigStatus, data = mignute.ndays))
@@ -507,7 +489,7 @@ summary(aadfq)
 ### (due to agreement bt bonferroni and tukey)
 # definite significant diff bt migrants and both other grps
 
-########################################
+#############################################
 ## diffs in abundance per migratory status ##
   
 ## AVG FORAGE ABUNDANCE PER DAY ##
@@ -523,19 +505,19 @@ summary(afa)
                           g = avgday.indiv$MigStatus, 
                           p.adjust.method = "bonf")
   aadb
-  #only sig diff is mig vs res
+  #sig diff is mig vs others; res/int the same
 
   # holm multiple comparison: avgde
   aadh <- pairwise.t.test(x = avgday.indiv$AvgDayGForage, 
                           g = avgday.indiv$MigStatus, 
                           p.adjust.method = "holm")
   aadh
-  #only sig diff is mig vs res 
+  #only sig diff is mig vs others 
 
   # tukey hsd multiple comparison - avgde
   aadt <- TukeyHSD(aov(AvgDayGForage ~ MigStatus, data = avgday.indiv))
   aadt
-  #only sig diff is mig vs res
+  #only sig diff is mig vs others
 
 # conclusion: migrants are in areas with higher abundance than residents
 
@@ -548,6 +530,7 @@ mx
 confint(mx)
 
 # confidence intervals overlap 0, so no dig diff
+#but may have low power to detect diff due to small sample size
 
 # just looking at average IFBF correcting for lact
 il <- glm(IFBF ~ LactStatus, data = alllac)
@@ -561,7 +544,7 @@ il
 
 ppns <- migstatus %>%
   mutate(Year = ifelse(grepl("-14", IndivYr), 2014, 2015)) %>%
-  select(Year, MigStatus) %>%
+  dplyr::select(Year, MigStatus) %>%
   group_by(Year) %>%
   summarize(ppnRes = length(which(MigStatus == "Resident"))/n(),
             ppnInt = length(which(MigStatus == "Intermediate"))/n(),
@@ -569,7 +552,7 @@ ppns <- migstatus %>%
   ungroup()
 write.csv(ppns, file = "migstatus-ppns-per-yr.csv", row.names=F)  
   
-# these look essentially the same
+
 
 ###############################################
 ## diffs in home range area by mig status ##
@@ -597,3 +580,10 @@ summary(hr)
   nadt <- TukeyHSD(aov(HRarea ~ MigStatus, data = mignute.ndays))
   nadt
   #double ditto
+  
+############################################
+## diffs in fecal nitrogen per mig/nonmig ##
+
+fnt <- t.test(PctN ~ MigStatus, data = fn)
+fnt
+# insignificant difference

@@ -15,6 +15,7 @@
 # PACKAGES #
 
 library(RODBC)
+library(rgdal)
 library(ggplot2)
 library(adehabitatHR)
 library(raster)
@@ -80,7 +81,7 @@ vi95 <- read.csv("../Migration/HRoverlap/volumeintersection.csv")
 vi50 <- read.csv("../Migration/HRoverlap/volumeintersection50.csv")
 caploc <- read.csv("capture-locations.csv")
 
-# tweak and claen; remove ski hill elk
+# tweak and clean; remove ski hill elk
 mig <- vi95 %>%
   rename(VI95 = SprVI) %>%
   dplyr::select(-c(AnimalID, Sex)) %>% 
@@ -106,7 +107,7 @@ mig <- mig %>%
   arrange(desc(VI50)) %>%
   mutate(MigRank = row_number(),
          MigStatus = ifelse(VI50 > 0, "Resident",
-                     ifelse(VI95 < 0.05, "Migrant",
+                     ifelse(VI95 == 0, "Migrant",
                             "Intermediate")))
 
 write.csv(mig, file = "migstatus.csv", row.names=FALSE)
@@ -354,7 +355,7 @@ locs <- read.csv("../ElkDatabase/collardata-locsonly-equalsampling.csv") %>%
 						   paste(AnimalID, "-15", sep="")))
 
 
-#### CALCULATE AREA OF EACH INDIV HOME RANGE ####
+### CALCULATE AREA OF EACH INDIV HOME RANGE ###
 
 xy <- data.frame("x" = locs$Long, "y" = locs$Lat)
 ll <- SpatialPointsDataFrame(xy, locs, proj4string = latlong)
@@ -364,6 +365,23 @@ hrs <- getverticeshr(kud) #calculate kde areas
 hr.a <- as.data.frame(hrs) %>%
   rename(IndivYr = id, HRarea = area)
 
+## ADD MIG STATUS INFO AND EXPORT AS SHP ##
+
+hrs@data$IndivYr <- hrs@data$id
+hrs@data <- left_join(hrs@data, migstatus, by = "IndivYr") %>%
+    mutate(Year = ifelse(grepl("-14", IndivYr), 2014, 2015))
+
+par(mfrow=c(1,2))
+plot(subset(hrs, grepl("14$", hrs@data$id)), main = "2014",
+     border = hrs@data$MigStatus)
+plot(subset(hrs, grepl("15$", hrs@data$id)), main = "2015",
+     border = hrs@data$MigStatus)
+
+writeOGR(hrs, dsn = "../../NSERP/GIS/aOrganized/Shapefiles", 
+         layer = "SummmerHRs", driver = "ESRI Shapefile",
+         overwrite = TRUE)
+
+
 write.csv(hr.a, file = "homerangeareas.csv", row.names = FALSE)
 
 
@@ -371,10 +389,15 @@ write.csv(hr.a, file = "homerangeareas.csv", row.names = FALSE)
 ####  Fecal Nitrogen  ####
 ##########################
 
-fn <- read.csv("fecalnitrogen-raw.csv") %>%
-  na.omit()
-fn$Mig <- tolower(fn$Mig)
-fn$Mig <- tools::toTitleCase(fn$Mig)
+pellets <- read.csv("FecalN-DefMigNonmig.csv")
+fecaln <- read.csv("fecalnitrogen-raw.csv")
+
+fn <- pellets %>%
+  rename(SampleID = Sample_ID) %>%
+  dplyr::select(-c(Date, Latitude, Longitude)) %>%
+  left_join(fecaln, by = "SampleID") %>%
+  dplyr::select(-c(SamplingYear, General.Location, Mig))
+
 write.csv(fn, file = "fecalnitrogen.csv", row.names = FALSE)
 
 

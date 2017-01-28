@@ -331,7 +331,7 @@ fnt
 
 
 ########################
-# looking at HR size and density
+# looking at HR size and density ####
 
 par(mfrow=c(1,2))
 plot(subset(hrs, grepl("14$", hrs@data$id)), main = "2014")
@@ -354,6 +354,38 @@ library(rgdal)
 writeOGR(hrs, dsn = "../../NSERP/GIS/aOrganized/Shapefiles", 
          layer = "SummmerHRs", driver = "ESRI Shapefile",
          overwrite = TRUE)
+
+
+
+########################
+# making migstatus for ifbf be from 2014 ####
+
+# LACTATING ELK body condition
+lac <- ifbf.lac %>%
+  filter(LactStatus == "Yes") %>% 
+  arrange(IndivYr) %>% #so 2014 is 1st for ea indiv
+  group_by(AnimalID) %>%
+  mutate(NewStatus = first(MigStatus)) %>%
+  ungroup() %>%
+  dplyr::select(-MigStatus) %>%
+  dplyr::select(AnimalID, NewStatus, IFBF) %>%
+  distinct() %>%
+  transform(NewStatus = factor(NewStatus,
+                        levels = c("Resident",
+                                   "Intermediate",
+                                   "Migrant"),
+                            ordered = TRUE))
+#i may be fucking up all these data analyses
+#but i can use dplyr pretty well now
+#so i've got that going for me which is nice
+
+
+
+
+
+
+
+
 
 ########################################################################
 ########################################################################
