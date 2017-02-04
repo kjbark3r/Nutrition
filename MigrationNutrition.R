@@ -98,7 +98,7 @@ mig <- vi95 %>%
 ## rank strength of mig behavior, and discretize behavior
 ## using volume intersection of winter/summer KDEs
   # resident is any indiv whose CORES (50% UD) overlap between seasons
-  # migrant is any indiv whose HRs (95% UD) overlap less than 5%
+  # migrant is any indiv whose HRs (95% UD) never overlap
   # intermediate is everyone else
   # rank is sorted first by 95% VI, then by 50% VI
 
@@ -142,7 +142,7 @@ latlong <- CRS("+init=epsg:4326") # WGS84
 # 2014
 smr14 <- locs %>%
   filter(Sex == "Female")  %>% # not using males for nutrition analysis
-  subset(between(Date, as.Date("2014-07-01"), as.Date("2014-08-31"))) %>%
+  subset(between(Date, as.Date("2014-07-15"), as.Date("2014-08-31"))) %>%
   subset(Time < 1400 | Time > 1800) # remove hottest times of day (bedding)
 xy14 <- data.frame("x" = smr14$Long, "y" = smr14$Lat) # pull coords
 spdf.ll14 <- SpatialPointsDataFrame(xy14, smr14, proj4string = latlong) #spatial
@@ -159,7 +159,7 @@ nute14 <- ext14 %>%
 # 2015
 smr15 <- locs %>%
   filter(Sex == "Female")  %>% # not using males for nutrition analysis
-  subset(between(Date, as.Date("2015-07-01"), as.Date("2015-08-31"))) %>%
+  subset(between(Date, as.Date("2015-07-15"), as.Date("2015-08-31"))) %>%
   subset(Time < 1400 | Time > 1800) # remove hottest times of day (bedding)
 xy15 <- data.frame("x" = smr15$Long, "y" = smr15$Lat)
 spdf.ll15 <- SpatialPointsDataFrame(xy15, smr15, proj4string = latlong) #spatial
@@ -221,7 +221,7 @@ latlong <- CRS("+init=epsg:4326") # WGS84
 # 2014
 smr14 <- locs %>%
   filter(Sex == "Female")  %>% # not using males for nutrition analysis
-  subset(between(Date, as.Date("2014-07-01"), as.Date("2014-08-31"))) %>%
+  subset(between(Date, as.Date("2014-07-15"), as.Date("2014-08-31"))) %>%
   subset(Time < 1400 | Time > 1800) # remove hottest times of day (bedding)
 xy14 <- data.frame("x" = smr14$Long, "y" = smr14$Lat) # pull coords
 spdf.ll14 <- SpatialPointsDataFrame(xy14, smr14, proj4string = latlong) #spatial
@@ -238,7 +238,7 @@ habund14 <- ext14 %>%
 # 2015
 smr15 <- locs %>%
   filter(Sex == "Female")  %>% # not using males for nutrition analysis
-  subset(between(Date, as.Date("2015-07-01"), as.Date("2015-08-31"))) %>%
+  subset(between(Date, as.Date("2015-07-15"), as.Date("2015-08-31"))) %>%
   subset(Time < 1400 | Time > 1800) # remove hottest times of day (bedding)
 xy15 <- data.frame("x" = smr15$Long, "y" = smr15$Lat)
 spdf.ll15 <- SpatialPointsDataFrame(xy15, smr15, proj4string = latlong) #spatial
@@ -288,7 +288,7 @@ latlong <- CRS("+init=epsg:4326") # WGS84
 # 2014
 smr14 <- locs %>%
   filter(Sex == "Female")  %>% # not using males for nutrition analysis
-  subset(between(Date, as.Date("2014-07-01"), as.Date("2014-08-31"))) %>%
+  subset(between(Date, as.Date("2014-07-15"), as.Date("2014-08-31"))) %>%
   subset(Time < 1400 | Time > 1800) # remove hottest times of day (bedding)
 xy14 <- data.frame("x" = smr14$Long, "y" = smr14$Lat) # pull coords
 spdf.ll14 <- SpatialPointsDataFrame(xy14, smr14, proj4string = latlong) #spatial
@@ -305,7 +305,7 @@ sabund14 <- ext14 %>%
 # 2015
 smr15 <- locs %>%
   filter(Sex == "Female")  %>% # not using males for nutrition analysis
-  subset(between(Date, as.Date("2015-07-01"), as.Date("2015-08-31"))) %>%
+  subset(between(Date, as.Date("2015-07-15"), as.Date("2015-08-31"))) %>%
   subset(Time < 1400 | Time > 1800) # remove hottest times of day (bedding)
 xy15 <- data.frame("x" = smr15$Long, "y" = smr15$Lat)
 spdf.ll15 <- SpatialPointsDataFrame(xy15, smr15, proj4string = latlong) #spatial
@@ -417,7 +417,7 @@ abund <- read.csv("avg-daily-g.csv")
 hr <- read.csv("homerangeareas.csv")
 
 # combine forage quality and quantity
-frg <- left_join(abund, nute, by = c("IndivYr", "Date")) %>%
+frg <- left_join(nute, abund, by = c("IndivYr", "Date")) %>%
   mutate(AvgGForage = AvgGHerb+AvgGShrub)
 
 

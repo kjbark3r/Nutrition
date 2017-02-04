@@ -15,6 +15,7 @@
 library(dplyr)
 library(tidyr)
 library(ggplot2) # graphics
+library(reshape2)
 library(gridExtra) # >1 plot per display
 library(pscl)
 library(lme4)
@@ -67,6 +68,35 @@ fn$DOY <- fn$Date$yday
 # PER MIG STATUS average forage values per day
 avgday <- mignute.avg %>%
   dplyr::select(-Date) %>%
+  group_by(DOY, MigStatus) %>%
+  summarise(AvgDayDE = mean(AvgDE, na.rm=T),
+            AvgDayGHerb = mean(AvgGHerb, na.rm=T),
+            AvgDayGShrub = mean(AvgGShrub, na.rm=T),
+            AvgDayGForage = mean(AvgGForage, na.rm=T)) %>%
+  ungroup() %>%
+  mutate(DEclass = ifelse(AvgDayDE >= 2.9, "Excellent", 
+                   ifelse(AvgDayDE >= 2.75 & AvgDayDE < 2.9, "Good",
+                   ifelse(AvgDayDE > 2.40 & AvgDayDE < 2.75, "Marginal",
+                          "Poor")))) 
+# same as above but split per year
+avgday14 <- mignute.avg %>%
+  dplyr::select(-Date) %>%
+  mutate(Year = ifelse(grepl("-14", IndivYr), 2014, 2015)) %>%
+  subset(Year == 2014) %>%
+  group_by(DOY, MigStatus) %>%
+  summarise(AvgDayDE = mean(AvgDE, na.rm=T),
+            AvgDayGHerb = mean(AvgGHerb, na.rm=T),
+            AvgDayGShrub = mean(AvgGShrub, na.rm=T),
+            AvgDayGForage = mean(AvgGForage, na.rm=T)) %>%
+  ungroup() %>%
+  mutate(DEclass = ifelse(AvgDayDE >= 2.9, "Excellent", 
+                   ifelse(AvgDayDE >= 2.75 & AvgDayDE < 2.9, "Good",
+                   ifelse(AvgDayDE > 2.40 & AvgDayDE < 2.75, "Marginal",
+                          "Poor")))) 
+avgday15 <- mignute.avg %>%
+  dplyr::select(-Date) %>%
+  mutate(Year = ifelse(grepl("-14", IndivYr), 2014, 2015)) %>%
+  subset(Year == 2015) %>%
   group_by(DOY, MigStatus) %>%
   summarise(AvgDayDE = mean(AvgDE, na.rm=T),
             AvgDayGHerb = mean(AvgGHerb, na.rm=T),
@@ -262,6 +292,32 @@ tp <-  ggplot(avgday,
               geom_hline(yintercept=2.75)
 tp
 
+# timeplot DE by day - split by year
+tp14 <-  ggplot(data = avgday14, 
+              aes(DOY, AvgDayDE, colour = MigStatus)) +
+              geom_line() +
+              geom_point() +
+              geom_hline(yintercept=2.75) + 
+              labs(title = "DE 2014")
+tp15 <-  ggplot(data = avgday15,
+              aes(DOY, AvgDayDE, colour = MigStatus)) +
+              geom_line() +
+              geom_point() +
+              geom_hline(yintercept=2.75) + 
+              labs(title = "DE 2015")
+grid.arrange(tp14, tp15, nrow = 2)
+
+## avg daily de exposure ~ migratory RANK
+ndaysrank <- ggplot(mignute.ndays,
+                    aes(MigRank, nAdequate)) +
+                    geom_point() +
+                    stat_smooth(method=loess)
+avgderank <- ggplot(avgday.indiv,
+                    aes(MigRank, AvgDayDE)) +
+                    geom_point() +
+                    stat_smooth(method=loess)
+grid.arrange(ndaysrank, avgderank, nrow = 2)
+
 # timeplot FN by day
 tpf <-  ggplot(data= fn, 
               aes(DOY, PctN, colour = MigStatus)) +
@@ -283,6 +339,7 @@ tpf15 <- ggplot(data=subset(fn, Year == 2015),
               geom_point() +
               labs(title = "Fecal N 2015")
 grid.arrange(tpf14, tpf15, nrow = 2)
+
 
 # add hist - ppn res/int/mig with adequate fq per day
 tp + geom_bar(data = ppn,
@@ -321,15 +378,6 @@ summary(a)
 par(mfrow=c(2,2))
 plot(a)
 
-# nute ~ MigRank
-par(mfrow=c(2,1))
-scatter.smooth(mignute.avg$AvgDE ~ mignute.avg$MigRank)
-scatter.smooth(mignute.ndays$nAdequate ~ mignute.ndays$MigRank)
-
-# better nute ~ MigRank
-par(mfrow=c(2,1))
-scatter.smooth(mignute.ndays$nAdequate ~ mignute.ndays$MigRank)
-scatter.smooth(avgday.indiv$AvgDayDE ~ avgday.indiv$MigRank)
 
 # nute ~ MigRank - nDays vs AvgDailyDE
 par(mfrow=c(2,1))
@@ -394,24 +442,115 @@ ifbf.nolac <- ggplot(data = nolac,
            labs(title = "Non-lactator IFBF")
 grid.arrange(ifbf.lac, ifbf.nolac, nrow=1, ncol=2)
 
-######################################
-####  Actual presentation graphs  ####
-######################################
-
-de14 <- raster("../Vegetation/DE2014.tif")
-par(mfrow = c(1,1))
-plot(de14, main = "Forage Quality (kcal/m^2)")
-
+# abundance, transformed from logged vals back to g
 gherb <- raster("../Vegetation/gherb2014.tif")
 gshrub <- raster("../Vegetation/gshrub2014.tif")
-
 foo <- function(a, b) {
   newval <- (a+b)/10000
   return(newval)
 }
-
 gfor <- overlay(gherb, gshrub, fun = "foo")
 plot(gfor, main = "Forage Quantity (g/m^2)")
+
+
+######################################
+####  Actual presentation graphs  ####
+######################################
+
+# timeplot DE by day
+avgday.date <- avgday %>%
+  mutate(Date = as.Date(DOY, origin = "2014-01-01"))
+tp <-  ggplot(avgday.date, 
+              aes(Date, AvgDayDE, colour = MigStatus)) +
+              geom_line() +
+              geom_point() +
+              geom_hline(yintercept=2.75) +
+              labs(title = "Daily Nutritional Exposure",
+                   x = "", 
+                   y = expression(paste(
+                        "Forage Quality (kcal / ", 
+                         m^2, ")", sep=""))) +
+              theme(legend.title=element_blank())
+tp
+
+# avg de exposure by mig status
+avgde <- ggplot(data = avgday.indiv, 
+       aes(x = MigStatus, y = AvgDayDE)) +
+       geom_boxplot(aes(fill = MigStatus)) +
+       geom_hline(yintercept=2.75) +
+       labs(title = "Daily Nutritional Exposure",
+            x = "", y = expression(paste(
+                        "Forage Quality (kcal / ", 
+                         m^2, ")", sep=""))) +
+              theme(legend.position="none")
+
+avgde
+
+# n days adequate/inadequate exposure by mig status
+ad <- ggplot(data = mignute.ndays, 
+       aes(x = MigStatus, y = nAdequate)) +
+       geom_boxplot(aes(fill = MigStatus)) +
+       labs(title = "Exposure to Adequate Forage Quality",
+            x = "", y = "Number of Days Exposure") +
+              theme(legend.position="none")
+
+ad
+inad <- ggplot(data = mignute.ndays, 
+       aes(x = MigStatus, y = nInadequate)) +
+       geom_boxplot(aes(fill = MigStatus)) +
+       labs(title = "Exposure to Inadequate Forage Quality",
+            x = "", y = "Number of Days Exposure") +
+              theme(legend.position="none")
+
+inad
+
+
+# n days exposure - excellent/good/marginal/poor
+exc <- ggplot(data = mignute.ndays, 
+  aes(x = MigStatus, y = nExc)) +
+  geom_boxplot(aes(fill = MigStatus)) +
+  labs(title = "Excellent",
+       x = "", y = "Number of Days Exposure") +
+  theme(legend.position="none") + 
+  ylim(0,50)
+gd <- ggplot(data = mignute.ndays, 
+  aes(x = MigStatus, y = nGood)) +
+  geom_boxplot(aes(fill = MigStatus)) +
+  labs(title = "Good", x="", y="") +
+  theme(legend.position="none",
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank()) + 
+  ylim(0,50)
+marg <- ggplot(data = mignute.ndays, 
+  aes(x = MigStatus, y = nMarg)) +
+  geom_boxplot(aes(fill = MigStatus)) +
+  labs(title = "Marginal", x="", y="") +
+  theme(legend.position="none",
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank()) + 
+  ylim(0,50)
+pr <- ggplot(data = mignute.ndays, 
+  aes(x = MigStatus, y = nPoor)) +
+  geom_boxplot(aes(fill = MigStatus)) +
+  labs(title = "Poor", x="", y="") + 
+  theme(legend.position="none",
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank()) + 
+  ylim(0,50)
+grid.arrange(exc, gd, marg, pr, ncol = 4)
+
+
+
+# available nutrition across study area
+de14 <- raster("../Vegetation/DE2014.tif")
+de15 <- raster("../Vegetation/DE2015.tif")
+par(mfrow = c(1,2))
+plot(de14, main = " 2014 Forage Quality (kcal/m^2)")
+plot(de14, main = "2015 Forage Quality (kcal/m^2)")
+
+
+
+
 
 
 #################
