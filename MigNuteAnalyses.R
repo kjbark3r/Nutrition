@@ -546,7 +546,7 @@ de14 <- raster("../Vegetation/DE2014.tif")
 de15 <- raster("../Vegetation/DE2015.tif")
 par(mfrow = c(1,2))
 plot(de14, main = " 2014 Forage Quality (kcal/m^2)")
-plot(de14, main = "2015 Forage Quality (kcal/m^2)")
+plot(de15, main = "2015 Forage Quality (kcal/m^2)")
 
 
 
@@ -575,23 +575,23 @@ summary(nadfq)
                           g = mignute.ndays$MigStatus, 
                           p.adjust.method = "bonf")
   nadb
-  #says residents and intermediates not significantly diff (barely)
   #migrants significantly diff from both
+  #residents and intermediates sig diff too, but less so
   
   # holm multiple comparison: ndaysad
   nadh <- pairwise.t.test(x = mignute.ndays$nAdequate, 
                           g = mignute.ndays$MigStatus, 
                           p.adjust.method = "holm")
   nadh
-  #says residents and intermediates not significantly diff (barely)
   #migrants significantly diff from both
-  
+  #residents and intermediates sig diff too, but less so
+ 
   # tukey hsd multiple comparison - ndays de
   nadt <- TukeyHSD(aov(nAdequate ~ MigStatus, data = mignute.ndays))
   nadt
-  #says residents and intermediates not significantly diff (barely)
   #migrants significantly diff from both
-
+  #residents and intermediates sig diff too, but less so
+ 
   
 ## AVG DE EXPOSURE PER DAY ##
 
@@ -624,10 +624,14 @@ summary(aadfq)
   
 
 # ok, going with no sig diff (/weak evidence for diff)
-## between residents and intermediates
-### (due to agreement bt bonferroni and tukey)
-# definite significant diff bt migrants and both other grps
-
+## between residents and intermediates avg daily exposure
+  # so intermediates are more likely on a given day to be exposed to adequate nutrition
+  # but they're less likely to be exposed to adequate nutrition for as many days total
+  # which makes it seem residents are killing it
+  # intermediates are fine but slightly worse
+  #and migrants seem to be making the best of a bad situation
+  
+  
 #############################################
 ## diffs in abundance per migratory status ##
   
