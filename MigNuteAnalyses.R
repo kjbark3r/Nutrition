@@ -730,3 +730,43 @@ summary(hr)
 fnt <- t.test(PctN ~ MigStatus, data = fn)
 fnt
 # insignificant difference
+
+
+###############################################
+## summary info about migratory behavior ##
+
+summary(migstatus$VI95)
+hist(migstatus$VI95)
+summary(migstatus$VI50)
+
+###############################################
+## DE per each landcover type ##
+
+dedat <- read.csv("../Vegetation/DE-model-data.csv") %>%
+  dplyr::select(DE, landcov, class_name)
+sub1 <- filter(dedat, landcov == 1)
+sub2 <- filter(dedat, landcov == 2)
+sub3 <- filter(dedat, landcov == 3)
+sub4 <- filter(dedat, landcov == 4)
+sub5 <- filter(dedat, landcov == 5)
+sub6 <- filter(dedat, landcov == 6)
+sub7 <- filter(dedat, landcov == 7)
+sub8 <- filter(dedat, landcov == 8)
+sub9 <- filter(dedat, landcov == 9)
+sub10 <- filter(dedat, landcov == 10)
+sub11 <- filter(dedat, landcov == 11)
+sub12 <- filter(dedat, landcov == 12)
+
+par(mfrow=c(3,4))
+hist(sub1$DE, xlab = "Mesic Forest (Burn >15)")
+hist(sub2$DE, xlab = "Dry Forest (Burn >15)")
+hist(sub3$DE, xlab = "Grass/Shrub/Open Woodland")
+hist(sub4$DE, xlab = "Dry Ag")
+hist(sub5$DE, xlab = "Valley Bottom Riparian")
+hist(sub6$DE, xlab = "Montane Riparian")
+hist(sub7$DE, xlab = "Irrigated Ag")
+hist(sub8$DE, xlab = "Dry Forest (Burn 0-5)")
+hist(sub9$DE, xlab = "Dry Forest (Burn 6-15)")
+hist(sub10$DE, xlab = "Mesic Forest (Burn 0-5)")
+hist(sub11$DE, xlab = "Mesic Forest (Burn 6-15)")
+hist(sub12$DE, xlab = "Rx Dry Forest (Burn 0-5)")

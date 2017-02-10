@@ -80,6 +80,7 @@ write.csv(caploc, file = "capture-locations.csv", row.names=F)
 vi95 <- read.csv("../Migration/HRoverlap/volumeintersection.csv")
 vi50 <- read.csv("../Migration/HRoverlap/volumeintersection50.csv")
 caploc <- read.csv("capture-locations.csv")
+dists <- read.csv("../Migration/HRoverlap/distbtcentroids.csv")
 
 # tweak and clean; remove ski hill elk
 mig <- vi95 %>%
@@ -90,6 +91,7 @@ mig <- vi95 %>%
   dplyr::select(IndivYr, AnimalID, VI95, VI50) %>%
   left_join(caploc, by = "AnimalID") %>%
   filter(Location != "Ski Hill") %>% # remove Ski Hill elk (n=6)
+  left_join(dists) %>%
   dplyr::select(-Location)
   
 
@@ -101,14 +103,17 @@ mig <- vi95 %>%
   # migrant is any indiv whose HRs (95% UD) never overlap
   # intermediate is everyone else
   # rank is sorted first by 95% VI, then by 50% VI
+    # migrants are ranked by increasing distance bt seasonal hr centroids
 
 mig <- mig %>%
   arrange(desc(VI95)) %>%
   arrange(desc(VI50)) %>%
+#  arrange(Dist) %>%
   mutate(MigRank = row_number(),
          MigStatus = ifelse(VI50 > 0, "Resident",
                      ifelse(VI95 == 0, "Migrant",
-                            "Intermediate")))
+                            "Intermediate"))) 
+  
 
 write.csv(mig, file = "migstatus.csv", row.names=FALSE)
 
