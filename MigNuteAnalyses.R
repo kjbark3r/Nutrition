@@ -228,7 +228,7 @@ inad <- ggplot(data = mignute.ndays,
             x = "", y = "Number of Days Exposure")
 grid.arrange(ad, inad, nrow=2)
 
-# avg de exposure by mig rank
+# avg de exposure by mig status
 avgde <- ggplot(data = avgday.indiv, 
        aes(x = MigStatus, y = AvgDayDE)) +
        geom_boxplot(aes(fill = MigStatus)) +
@@ -236,7 +236,7 @@ avgde <- ggplot(data = avgday.indiv,
        geom_hline(yintercept=2.75)
 avgde
 
-# g herbaceous forage exposure by mig rank
+# g herbaceous forage exposure by mig status
 avggh <- ggplot(data = avgday.indiv, 
        aes(x = MigStatus, y = AvgDayGHerb)) +
        geom_boxplot(aes(fill = MigStatus)) +
@@ -312,10 +312,14 @@ ndaysrank <- ggplot(mignute.ndays,
                     aes(MigRank, nAdequate)) +
                     geom_point() +
                     stat_smooth(method=loess)
+
 avgderank <- ggplot(avgday.indiv,
                     aes(MigRank, AvgDayDE)) +
                     geom_point() +
-                    stat_smooth(method=loess)
+                    stat_smooth(method=loess) +
+                    geom_hline(yintercept=2.75)
+avgderank
+
 grid.arrange(ndaysrank, avgderank, nrow = 2)
 
 # timeplot FN by day
@@ -549,6 +553,79 @@ plot(de14, main = " 2014 Forage Quality (kcal/m^2)")
 plot(de15, main = "2015 Forage Quality (kcal/m^2)")
 
 
+# DE by lifeform and phenophase
+
+# read in raw data
+de.dat <- read.csv("../Vegetation/DE-bylifeform.csv")
+# make it longform
+de <- de.dat %>%
+  gather(key = "Stage", value = "DE", 
+         DEemerg, DEflwr, DEfrt, DEcure) %>%
+  rename(LifeForm = Class)
+# make phenophase stage names correct
+de$Stage <- ifelse(de$Stage == "DEemerg", "Emergent", 
+                   ifelse(de$Stage == "DEflwr", "Flowering",
+                          ifelse(de$Stage == "DEfrt", "Fruiting",
+                                 "Cured"))) # make names pretty
+# order stages in temporal order of phenophase
+de$Stage <- factor(de$Stage, 
+                   levels = c("Emergent", "Flowering",
+                               "Fruiting", "Cured"),
+                            ordered = TRUE) 
+#capitalize lifeform names
+de$LifeForm <- paste(toupper(substring(de$LifeForm, 1, 1)), 
+                     substring(de$LifeForm, 2), sep = "") #capitalize
+# order lifeforms in decreasing order of DE
+de$LifeForm <- factor(de$LifeForm, 
+                   levels = c("Graminoid", "Forb", "Shrub"),
+                            ordered = TRUE) 
+# plot, finally
+ggplot(data = de, aes(x = Stage, y = DE, fill = LifeForm)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  scale_fill_manual(values=c("darkgreen","navy", "tan2")) +
+  labs(x = "", y = "Digestibility (kcal)")
+
+###
+# summarize diet results
+# n spp, pct grass/fb/shrub
+dat.diet <- read.csv("../Vegetation/NSERP_ForagePlants_Summer.csv")
+de.diet <- read.csv("../Vegetation/de-byspecies.csv")
+diet <- left_join(dat.diet, de.diet, by = "Species") %>%
+  dplyr::select(-c(Genus2, ForagePlant)) %>%
+  rename(DE = mean)
+#ppns
+nrow(subset(diet, LifeForm == "graminoid"))/nrow(diet)
+  # graminoid = 0.419
+nrow(subset(diet, LifeForm == "forb"))/nrow(diet)
+  # forb = 0.440
+nrow(subset(diet, LifeForm == "shrub"))/nrow(diet)
+  # shrub = 0.086
+nrow(subset(diet, LifeForm == "tree"))/nrow(diet)
+  # tree = 0.054
+
+forage <- read.csv("../Vegetation/NS_foragespecies_summer.csv")%>%
+  filter(cumave < 96) %>%
+  mutate(Genus2 = trimws(gsub(' leaf| stem', '', SpeciesName))) %>%
+  rename("Species"=SpeciesName,
+         Ppn = mean,
+         Genus = Genus2) %>%
+  filter(Class != "comphair" &
+           Class != "unk")
+#ppns
+nrow(subset(forage, Class == "graminoid"))/nrow(forage)
+  # graminoid = 0.44
+nrow(subset(forage, Class == "forb"))/nrow(forage)
+  # forb = 0.36
+nrow(subset(forage, Class == "shrub"))/nrow(forage)
+  # shrub = 0.16
+nrow(subset(forage, Class == "tree"))/nrow(forage)
+  # tree = 0.04
+
+lffrm <- de.dat %>%
+  group_by(Class) %>%
+  summarise(DE = mean(DEcure, DEemerg, DEflwr, DEfrt)) %>%
+  ungroup() %>%
+  left_join()
 
 
 
@@ -557,6 +634,10 @@ plot(de15, main = "2015 Forage Quality (kcal/m^2)")
 ####  Stats  ####
 #################
 
+#####################
+## ppn res/int/mig ##
+
+length()
 
 ###############################################
 ## diffs in FQ exposure per migratory status ##
@@ -631,7 +712,62 @@ summary(aadfq)
   # intermediates are fine but slightly worse
   #and migrants seem to be making the best of a bad situation
   
-  
+
+################################################################
+## diffs in ndays exposure to ea nute category per mig status ##
+
+## EXCELLENT ##
+
+# avg de exposure per day
+edfq <- aov(nExc ~ MigStatus, data = mignute.ndays)
+summary(edfq)
+# significant
+
+# tukey hsd multiple comparison 
+edfqt <- TukeyHSD(aov(nExc ~ MigStatus, data = mignute.ndays))
+edfqt  
+# mig sig less than res & int. Res/int no diff
+
+
+## GOOD ##
+
+# avg de exposure per day
+gdfq <- aov(nGood ~ MigStatus, data = mignute.ndays)
+summary(gdfq)
+# significant, but only 0.02
+
+# tukey hsd multiple comparison 
+gdfqt <- TukeyHSD(aov(nGood ~ MigStatus, data = mignute.ndays))
+gdfqt  
+# only sig diff is bt migrants and residents
+
+
+## MARGINAL ##
+
+# avg de exposure per day
+mdfq <- aov(nMarg ~ MigStatus, data = mignute.ndays)
+summary(mdfq)
+#super significant
+
+# tukey hsd multiple comparison 
+mdfqt <- TukeyHSD(aov(nMarg ~ MigStatus, data = mignute.ndays))
+mdfqt   
+# sig diffs mig-res and mig-int. p=0.0508 for int-res
+
+
+## POOR ##
+
+# avg de exposure per day
+pdfq <- aov(nPoor ~ MigStatus, data = mignute.ndays)
+summary(pdfq)
+#super significant
+
+# tukey hsd multiple comparison 
+pdfqt <- TukeyHSD(aov(nPoor ~ MigStatus, data = mignute.ndays))
+pdfqt   
+# sig diffs mig-res and mig-int. p=0.0508 for int-res
+
+
 #############################################
 ## diffs in abundance per migratory status ##
   
@@ -678,6 +814,16 @@ confint(mx)
 # just looking at average IFBF correcting for lact
 il <- glm(IFBF ~ LactStatus, data = alllac)
 il
+
+
+
+######################################
+## summarizing ppns r/i/m across years ##
+allppns <- migstatus %>%
+  summarize(ppnRes = length(which(MigStatus == "Resident"))/n(),
+            ppnInt = length(which(MigStatus == "Intermediate"))/n(),
+            ppnMig = length(which(MigStatus == "Migrant"))/n()) %>%
+  ungroup()
 
 ######################################
 ## diffs migstatus ppns 2014 - 2015 ##
@@ -770,3 +916,22 @@ hist(sub9$DE, xlab = "Dry Forest (Burn 6-15)")
 hist(sub10$DE, xlab = "Mesic Forest (Burn 0-5)")
 hist(sub11$DE, xlab = "Mesic Forest (Burn 6-15)")
 hist(sub12$DE, xlab = "Rx Dry Forest (Burn 0-5)")
+
+######################################
+## sig diffs bt de per landcover type ##
+lcnute <- aov(DE ~ class_name, data = dedat)
+summary(lcnute)
+
+######################################
+## just looking at reln bt  ##
+
+##############################################################
+#### CUTS AND MISC ####
+
+#############################################
+## reln bt avgdailyDE and migrank (strength) ##
+smoothed = loess(AvgDayDE~MigRank,
+                 data = avgday.indiv,
+                 model = TRUE)
+summary(smoothed)
+# oh oops, turns out you can't get an eqn from loess
