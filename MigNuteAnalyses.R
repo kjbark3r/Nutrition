@@ -585,6 +585,22 @@ ggplot(data = de, aes(x = Stage, y = DE, fill = LifeForm)) +
   scale_fill_manual(values=c("darkgreen","navy", "tan2")) +
   labs(x = "", y = "Digestibility (kcal)")
 
+
+
+
+
+#################
+####  Stats  ####
+#################
+
+##################################
+## sample sizes, summaries, etc ##
+
+nmig <- migstatus %>%
+      mutate(Year = ifelse(grepl("-14", IndivYr), 2014, 2015))
+count(nmig, Year == 2014)
+
+
 ###
 # summarize diet results
 # n spp, pct grass/fb/shrub
@@ -602,24 +618,8 @@ nrow(subset(diet, LifeForm == "shrub"))/nrow(diet)
   # shrub = 0.086
 nrow(subset(diet, LifeForm == "tree"))/nrow(diet)
   # tree = 0.054
-
-forage <- read.csv("../Vegetation/NS_foragespecies_summer.csv")%>%
-  filter(cumave < 96) %>%
-  mutate(Genus2 = trimws(gsub(' leaf| stem', '', SpeciesName))) %>%
-  rename("Species"=SpeciesName,
-         Ppn = mean,
-         Genus = Genus2) %>%
-  filter(Class != "comphair" &
-           Class != "unk")
-#ppns
-nrow(subset(forage, Class == "graminoid"))/nrow(forage)
-  # graminoid = 0.44
-nrow(subset(forage, Class == "forb"))/nrow(forage)
-  # forb = 0.36
-nrow(subset(forage, Class == "shrub"))/nrow(forage)
-  # shrub = 0.16
-nrow(subset(forage, Class == "tree"))/nrow(forage)
-  # tree = 0.04
+nrow(diet)
+table(diet$LifeForm)
 
 lffrm <- de.dat %>%
   group_by(Class) %>%
@@ -627,17 +627,6 @@ lffrm <- de.dat %>%
   ungroup() %>%
   left_join()
 
-
-
-
-#################
-####  Stats  ####
-#################
-
-#####################
-## ppn res/int/mig ##
-
-length()
 
 ###############################################
 ## diffs in FQ exposure per migratory status ##
