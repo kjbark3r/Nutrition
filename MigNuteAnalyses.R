@@ -12,6 +12,7 @@
 
 # PACKAGES #
 
+library(plyr)
 library(dplyr)
 library(tidyr)
 library(ggplot2) # graphics
@@ -590,9 +591,32 @@ ggplot(data = de, aes(x = Stage, y = DE, fill = LifeForm)) +
   scale_fill_manual(values=c("darkgreen","navy", "tan2")) +
   labs(x = "", y = "Digestibility (kcal)")
 
-###
-# summarize diet results
-# n spp, pct grass/fb/shrub
+
+
+
+
+#################
+####  Stats  ####
+#################
+
+##################################
+## sample sizes, summaries, etc ##
+
+# elk sample size per year
+nmig <- migstatus %>%
+      mutate(Year = ifelse(grepl("-14", IndivYr), 2014, 2015))
+count(nmig, Year == 2014)
+
+# summary stats, avg DE per day per migstatus
+any(is.na(mignute.avg$AvgDE))
+sumtab <- ddply(mignute.avg, "MigStatus", summarise,
+                N = length(AvgDE),
+                mean = mean(AvgDE),
+                sd = sd(AvgDE),
+                se = sd/sqrt(N))
+sumtab
+
+#  diet results-  n spp; pct grass/fb/shrub
 dat.diet <- read.csv("../Vegetation/NSERP_ForagePlants_Summer.csv")
 de.diet <- read.csv("../Vegetation/de-byspecies.csv")
 diet <- left_join(dat.diet, de.diet, by = "Species") %>%
@@ -607,24 +631,8 @@ nrow(subset(diet, LifeForm == "shrub"))/nrow(diet)
   # shrub = 0.086
 nrow(subset(diet, LifeForm == "tree"))/nrow(diet)
   # tree = 0.054
-
-forage <- read.csv("../Vegetation/NS_foragespecies_summer.csv")%>%
-  filter(cumave < 96) %>%
-  mutate(Genus2 = trimws(gsub(' leaf| stem', '', SpeciesName))) %>%
-  rename("Species"=SpeciesName,
-         Ppn = mean,
-         Genus = Genus2) %>%
-  filter(Class != "comphair" &
-           Class != "unk")
-#ppns
-nrow(subset(forage, Class == "graminoid"))/nrow(forage)
-  # graminoid = 0.44
-nrow(subset(forage, Class == "forb"))/nrow(forage)
-  # forb = 0.36
-nrow(subset(forage, Class == "shrub"))/nrow(forage)
-  # shrub = 0.16
-nrow(subset(forage, Class == "tree"))/nrow(forage)
-  # tree = 0.04
+nrow(diet)
+table(diet$LifeForm)
 
 lffrm <- de.dat %>%
   group_by(Class) %>%
@@ -632,17 +640,12 @@ lffrm <- de.dat %>%
   ungroup() %>%
   left_join()
 
-
-
-
-#################
-####  Stats  ####
-#################
-
-#####################
-## ppn res/int/mig ##
-
-length()
+# nutrition results
+library(raster)
+de2014 <- raster("../Vegetation/de2014.tif")
+de2015 <- raster("../Vegetation/de2015.tif")
+summary(de2014)
+summary(de2015)
 
 ###############################################
 ## diffs in FQ exposure per migratory status ##
