@@ -457,6 +457,12 @@ gfor <- overlay(gherb, gshrub, fun = "foo")
 plot(gfor, main = "Forage Quantity (g/m^2)")
 
 
+# freq distn of avgdayde by migstatus
+ggplot(data = avgday.indiv) +
+  geom_histogram(aes(x = AvgDayDE,
+                     y = ..count..,
+                     fill = MigStatus))
+
 ######################################
 ####  Actual presentation graphs  ####
 ######################################
@@ -542,7 +548,6 @@ pr <- ggplot(data = mignute.ndays,
         axis.ticks.y=element_blank()) + 
   ylim(0,50)
 grid.arrange(exc, gd, marg, pr, ncol = 4)
-
 
 
 # available nutrition across study area
