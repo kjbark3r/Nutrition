@@ -12,6 +12,7 @@
 
 # PACKAGES #
 
+library(plyr)
 library(dplyr)
 library(tidyr)
 library(ggplot2) # graphics
@@ -596,14 +597,21 @@ ggplot(data = de, aes(x = Stage, y = DE, fill = LifeForm)) +
 ##################################
 ## sample sizes, summaries, etc ##
 
+# elk sample size per year
 nmig <- migstatus %>%
       mutate(Year = ifelse(grepl("-14", IndivYr), 2014, 2015))
 count(nmig, Year == 2014)
 
+# summary stats, avg DE per day per migstatus
+any(is.na(mignute.avg$AvgDE))
+sumtab <- ddply(mignute.avg, "MigStatus", summarise,
+                N = length(AvgDE),
+                mean = mean(AvgDE),
+                sd = sd(AvgDE),
+                se = sd/sqrt(N))
+sumtab
 
-###
-# summarize diet results
-# n spp, pct grass/fb/shrub
+#  diet results-  n spp; pct grass/fb/shrub
 dat.diet <- read.csv("../Vegetation/NSERP_ForagePlants_Summer.csv")
 de.diet <- read.csv("../Vegetation/de-byspecies.csv")
 diet <- left_join(dat.diet, de.diet, by = "Species") %>%
@@ -627,6 +635,12 @@ lffrm <- de.dat %>%
   ungroup() %>%
   left_join()
 
+# nutrition results
+library(raster)
+de2014 <- raster("../Vegetation/de2014.tif")
+de2015 <- raster("../Vegetation/de2015.tif")
+summary(de2014)
+summary(de2015)
 
 ###############################################
 ## diffs in FQ exposure per migratory status ##
