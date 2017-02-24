@@ -80,12 +80,13 @@ avgday <- mignute.avg %>%
                    ifelse(AvgDayDE > 2.40 & AvgDayDE < 2.75, "Marginal",
                           "Poor")))) 
 # same as above but split per year
+require(dplyr)
 avgday14 <- mignute.avg %>%
   dplyr::select(-Date) %>%
   mutate(Year = ifelse(grepl("-14", IndivYr), 2014, 2015)) %>%
   subset(Year == 2014) %>%
   group_by(DOY, MigStatus) %>%
-  summarise(AvgDayDE = mean(AvgDE, na.rm=T),
+  dplyr::summarise(AvgDayDE = mean(AvgDE, na.rm=T),
             AvgDayGHerb = mean(AvgGHerb, na.rm=T),
             AvgDayGShrub = mean(AvgGShrub, na.rm=T),
             AvgDayGForage = mean(AvgGForage, na.rm=T)) %>%
@@ -112,12 +113,12 @@ avgday15 <- mignute.avg %>%
 # PER INDIV average forage values per day
 avgday.indiv <- mignute.avg %>%
   dplyr::select(-Date) %>%
-  group_by(IndivYr) %>%
-  summarise(AvgDayDE = mean(AvgDE, na.rm=T),
+  dplyr::group_by(IndivYr) %>%
+  dplyr::summarise(AvgDayDE = mean(AvgDE, na.rm=T),
             AvgDayGHerb = mean(AvgGHerb, na.rm=T),
             AvgDayGShrub = mean(AvgGShrub, na.rm=T),
             AvgDayGForage = mean(AvgGForage, na.rm=T)) %>%
-  ungroup() %>%
+  dplyr::ungroup() %>%
   mutate(DEclass = ifelse(AvgDayDE >= 2.9, "Excellent", 
                    ifelse(AvgDayDE >= 2.75 & AvgDayDE < 2.9, "Good",
                    ifelse(AvgDayDE > 2.40 & AvgDayDE < 2.75, "Marginal",
@@ -133,7 +134,7 @@ avgday.indiv <- mignute.avg %>%
 ppn <- mignute.avg %>%
   dplyr::select(-Date) %>% #dplyr hates POSIXlt
   group_by(DOY, MigStatus) %>%
-  summarise(nTotal = n(),
+  dplyr::summarise(nTotal = n(),
             nAd = length(which(AvgDE >= 2.75)),
             nInad = length(which(AvgDE < 2.75)),
             ppnAd = nAd/nTotal,
@@ -282,8 +283,23 @@ grid.arrange(ifbf, fn, nrow=(2))
 hra <- ggplot(data = mignute.ndays, 
            aes(x = MigStatus, y = HRarea)) +
            geom_boxplot(aes(fill = MigStatus)) +
-           labs(title = "Home Range Area (m^2)")
+           labs(title = "Home Range Area (ha)")
 hra
+
+## home range area ~ migstatus
+hrmig <- ggplot(mignute.ndays,
+                aes(x = MigRank, y = HRarea)) +
+  ylab("Home range size (ha)") +
+  xlab("Strength of Migratory Behavior") +
+  geom_smooth()
+hrmig
+## daily nute ~ migstatus
+fqmig <- ggplot(avgday.indiv,
+                aes(x = MigRank, y = AvgDayDE)) +
+  ylab("Average DE (kcal/g)") +
+  xlab("Strength of Migratory Behavior") +
+  geom_smooth()
+fqmig
 
 # timeplot DE by day
 tp <-  ggplot(avgday, 
@@ -366,7 +382,7 @@ scatter.smooth(plotinfo$DE ~ plotinfo$DOY)
 test <- mignute.avg %>%
   dplyr::select(-Date) %>%
   group_by(DOY) %>%
-  summarise(AvgDE = mean(AvgDE)) %>%
+  dplyr::summarise(AvgDE = mean(AvgDE)) %>%
   ungroup()
 scatter.smooth(test$AvgDE ~ test$DOY)
   # ha, quite the selection
@@ -587,7 +603,29 @@ ggplot(data = de, aes(x = Stage, y = DE, fill = LifeForm)) +
   labs(x = "", y = "Digestibility (kcal)")
 
 
+# home range area
+hra <- ggplot(data = mignute.ndays, 
+           aes(x = MigStatus, y = HRarea)) +
+           geom_boxplot(aes(fill = MigStatus)) +
+           labs(title = "Home Range Area (ha)") +
+    labs(title = "", x="", y="Home range size (ha)") + 
+  theme(legend.position="none")
+hra
 
+## home range area ~ migstatus
+hrmig <- ggplot(mignute.ndays,
+                aes(x = MigRank, y = HRarea)) +
+  ylab("Home range size (ha)") +
+  xlab("Strength of Migratory Behavior") +
+  geom_smooth()
+hrmig
+## daily nute ~ migstatus
+fqmig <- ggplot(avgday.indiv,
+                aes(x = MigRank, y = AvgDayDE)) +
+  ylab("Average DE (kcal/g)") +
+  xlab("Strength of Migratory Behavior") +
+  geom_smooth()
+fqmig
 
 
 #################
@@ -631,7 +669,7 @@ table(diet$LifeForm)
 
 lffrm <- de.dat %>%
   group_by(Class) %>%
-  summarise(DE = mean(DEcure, DEemerg, DEflwr, DEfrt)) %>%
+  dplyr::summarise(DE = mean(DEcure, DEemerg, DEflwr, DEfrt)) %>%
   ungroup() %>%
   left_join()
 
