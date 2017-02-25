@@ -230,6 +230,8 @@ inad <- ggplot(data = mignute.ndays,
             x = "", y = "Number of Days Exposure")
 grid.arrange(ad, inad, nrow=2)
 
+
+
 # avg de exposure by mig status
 avgde <- ggplot(data = avgday.indiv, 
        aes(x = MigStatus, y = AvgDayDE)) +
@@ -293,6 +295,8 @@ hrmig <- ggplot(mignute.ndays,
   xlab("Strength of Migratory Behavior") +
   geom_smooth()
 hrmig
+
+
 ## daily nute ~ migstatus
 fqmig <- ggplot(avgday.indiv,
                 aes(x = MigRank, y = AvgDayDE)) +
@@ -300,6 +304,7 @@ fqmig <- ggplot(avgday.indiv,
   xlab("Strength of Migratory Behavior") +
   geom_smooth()
 fqmig
+
 
 # timeplot DE by day
 tp <-  ggplot(avgday, 
@@ -532,21 +537,15 @@ inad <- ggplot(data = mignute.ndays,
 inad
 
 
-# n days exposure - excellent/good/marginal/poor
-exc <- ggplot(data = mignute.ndays, 
-  aes(x = MigStatus, y = nExc)) +
+# n days exposure - adequate/marginal/poor
+ad <- ggplot(data = mignute.ndays, 
+  aes(x = MigStatus, y = nAdequate)) +
   geom_boxplot(aes(fill = MigStatus)) +
-  labs(title = "Excellent",
-       x = "", y = "Number of Days Exposure") +
-  theme(legend.position="none") + 
-  ylim(0,50)
-gd <- ggplot(data = mignute.ndays, 
-  aes(x = MigStatus, y = nGood)) +
-  geom_boxplot(aes(fill = MigStatus)) +
-  labs(title = "Good", x="", y="") +
+  labs(title = "Adequate",
+       x = "", y = "# Days Access") +
   theme(legend.position="none",
-        axis.text.y=element_blank(),
-        axis.ticks.y=element_blank()) + 
+        text = element_text(size=15),
+        axis.text.x = element_text(size = 10)) + 
   ylim(0,50)
 marg <- ggplot(data = mignute.ndays, 
   aes(x = MigStatus, y = nMarg)) +
@@ -554,7 +553,9 @@ marg <- ggplot(data = mignute.ndays,
   labs(title = "Marginal", x="", y="") +
   theme(legend.position="none",
         axis.text.y=element_blank(),
-        axis.ticks.y=element_blank()) + 
+        axis.ticks.y=element_blank(),
+        text = element_text(size=15),
+        axis.text.x = element_text(size = 10)) + 
   ylim(0,50)
 pr <- ggplot(data = mignute.ndays, 
   aes(x = MigStatus, y = nPoor)) +
@@ -562,9 +563,11 @@ pr <- ggplot(data = mignute.ndays,
   labs(title = "Poor", x="", y="") + 
   theme(legend.position="none",
         axis.text.y=element_blank(),
-        axis.ticks.y=element_blank()) + 
+        axis.ticks.y=element_blank(),
+        text = element_text(size=15),
+        axis.text.x = element_text(size = 10)) + 
   ylim(0,50)
-grid.arrange(exc, gd, marg, pr, ncol = 4)
+grid.arrange(ad, marg, pr, ncol = 3)
 
 
 # available nutrition across study area
@@ -614,7 +617,8 @@ hra <- ggplot(data = mignute.ndays,
            geom_boxplot(aes(fill = MigStatus)) +
            labs(title = "Home Range Area (ha)") +
     labs(title = "", x="", y="Home range size (ha)") + 
-  theme(legend.position="none")
+  theme(legend.position="none",
+        text = element_text(size=15))
 hra
 
 ## home range area ~ migstatus
@@ -624,12 +628,16 @@ hrmig <- ggplot(mignute.ndays,
   xlab("Strength of Migratory Behavior") +
   geom_smooth()
 hrmig
+
+
 ## daily nute ~ migstatus
 fqmig <- ggplot(avgday.indiv,
                 aes(x = MigRank, y = AvgDayDE)) +
-  ylab("Average DE (kcal/g)") +
-  xlab("Strength of Migratory Behavior") +
-  geom_smooth()
+  labs(x = "", y = "Forage Quality (kcal/g)") +
+  geom_smooth(color = "black")+
+  geom_hline(yintercept=2.75) +
+  theme(text = element_text(size=15),
+        axis.text.x=element_blank()) 
 fqmig
 
 
