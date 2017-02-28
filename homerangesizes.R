@@ -58,7 +58,7 @@ xy <- data.frame("x" = locs$Long, "y" = locs$Lat)
 ll <- SpatialPointsDataFrame(xy, locs, proj4string = latlong)
 stpln <- spTransform(ll, stateplane)
 kud <- kernelUD(stpln[,7]) #create kde for each indiv (7=IndivYr)
-hrs <- getverticeshr(kud) #calculate kde areas
+hrs <- getverticeshr(kud, unin = "m", unout = "km2") #calculate kde areas
 hr.a <- as.data.frame(hrs) %>%
   rename(IndivYr = id, HRarea = area)
 

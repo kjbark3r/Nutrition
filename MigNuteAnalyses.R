@@ -494,27 +494,24 @@ avgday.date <- avgday %>%
   mutate(Date = as.Date(DOY, origin = "2014-01-01"))
 tp <-  ggplot(avgday.date, 
               aes(Date, AvgDayDE, colour = MigStatus)) +
-              geom_line() +
               geom_point() +
+    geom_smooth()+
               geom_hline(yintercept=2.75) +
-              labs(title = "Daily Nutritional Exposure",
-                   x = "", 
-                   y = expression(paste(
-                        "Forage Quality (kcal / ", 
-                         m^2, ")", sep=""))) +
-              theme(legend.title=element_blank())
+              labs(x = "", 
+                   y = "Available Nutrition (kcal/g)") +
+              theme(legend.title=element_blank(),
+                    text = element_text(size=20))
 tp
+
 
 # avg de exposure by mig status
 avgde <- ggplot(data = avgday.indiv, 
        aes(x = MigStatus, y = AvgDayDE)) +
        geom_boxplot(aes(fill = MigStatus)) +
        geom_hline(yintercept=2.75) +
-       labs(title = "Daily Nutritional Exposure",
-            x = "", y = expression(paste(
-                        "Forage Quality (kcal / ", 
-                         m^2, ")", sep=""))) +
-              theme(legend.position="none")
+       labs(x = "", y = "Average Nutrition (kcal/g)") +
+              theme(legend.position="none",
+                    text = element_text(size=20))
 
 avgde
 
@@ -615,10 +612,11 @@ ggplot(data = de, aes(x = Stage, y = DE, fill = LifeForm)) +
 hra <- ggplot(data = mignute.ndays, 
            aes(x = MigStatus, y = HRarea)) +
            geom_boxplot(aes(fill = MigStatus)) +
-           labs(title = "Home Range Area (ha)") +
-    labs(title = "", x="", y="Home range size (ha)") + 
+    labs(title = "", x="", y=expression(paste(
+                        "Home Range Size ( ", 
+                         km^2, ")", sep=""))) + 
   theme(legend.position="none",
-        text = element_text(size=15))
+        text = element_text(size=20))
 hra
 
 ## home range area ~ migstatus
@@ -630,16 +628,27 @@ hrmig <- ggplot(mignute.ndays,
 hrmig
 
 
-## daily nute ~ migstatus
+## daily nute ~ migrank
 fqmig <- ggplot(avgday.indiv,
                 aes(x = MigRank, y = AvgDayDE)) +
-  labs(x = "", y = "Forage Quality (kcal/g)") +
+  labs(x = "", y = "Nutrition (kcal/g)") +
   geom_smooth(color = "black")+
   geom_hline(yintercept=2.75) +
-  theme(text = element_text(size=15),
+  theme(text = element_text(size=20),
         axis.text.x=element_blank()) 
 fqmig
 
+
+## EXPORTS ##
+
+ggsave("nute-migrank", plot = fqmig, device = "jpeg",
+       dpi = 480)
+ggsave("avgde-migstatus", plot = avgde, device = "jpeg",
+       dpi = 480)
+ggsave("timeplot-dailyde", plot = tp, device = "jpeg",
+       dpi = 480)
+ggsave("homerangesize", plot = hra, device = "jpeg",
+       dpi = 480)
 
 #################
 ####  Stats  ####
