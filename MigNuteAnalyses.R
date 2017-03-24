@@ -493,16 +493,19 @@ ggplot(data = avgday.indiv) +
 avgday.date <- avgday %>%
   mutate(Date = as.Date(DOY, origin = "2014-01-01"))
 tp <-  ggplot(avgday.date, 
-              aes(Date, AvgDayDE, colour = MigStatus)) +
+              aes(Date, AvgDayDE, 
+                  shape = MigStatus,
+                  linetype = MigStatus)) +
               geom_point() +
-    geom_smooth()+
+    geom_smooth(color = "black")+
               geom_hline(yintercept=2.75) +
               labs(x = "", 
-                   y = "Available Nutrition (kcal/g)") +
+                   y = "Available Nutrition (kcal/g of forage)") +
               theme(legend.title=element_blank(),
-                    text = element_text(size=20))
+                    text = element_text(size=12))
 tp
-
+ggsave("timeplot.jpg", plot = tp, device = "jpeg",
+       dpi = 300)
 
 # avg de exposure by mig status
 avgde <- ggplot(data = avgday.indiv, 
@@ -567,8 +570,7 @@ pr <- ggplot(data = mignute.ndays,
 grid.arrange(ad, marg, pr, ncol = 3)
 
 # violinplots - n days exposure - ad/marg/pr
-
-# new df with abbreviated migstatuses
+  # new df with abbreviated migstatuses
 mignute.ndays.rn <- mignute.ndays
 mignute.ndays.rn$MigStatus <- ifelse(
   mignute.ndays.rn$MigStatus == "Resident", "Res",
@@ -580,7 +582,7 @@ mignute.ndays.rn$MigStatus = factor(
                                    "Int",
                                    "Mig"),
                             ordered = TRUE) 
-# plots
+  # plots
 ad <- ggplot(data = mignute.ndays.rn, 
   aes(x = MigStatus, y = nAdequate)) +
   geom_violin(fill="grey") +
@@ -622,9 +624,9 @@ pr <- ggplot(data = mignute.ndays.rn,
         axis.text.x = element_text(size = 10),
         plot.title = element_text(hjust = 0.5)) + 
   ylim(0,50)
-#plot all together
+  #plot all together
 ndaysplot <- grid.arrange(ad, marg, pr, ncol = 3)
-#export
+  #export
 ggsave("ndaysaccess", plot = ndaysplot, device = "jpeg",
        dpi = 300)
 
@@ -692,13 +694,15 @@ hrmig
 ## daily nute ~ migrank
 fqmig <- ggplot(avgday.indiv,
                 aes(x = MigRank, y = AvgDayDE)) +
-  labs(x = "", y = "Nutrition (kcal/g)") +
+  labs(x = "Resident                                                   Migrant", 
+       y = "Nutrition (kcal/g)") +
   geom_smooth(color = "black")+
   geom_hline(yintercept=2.75) +
   theme(text = element_text(size=20),
         axis.text.x=element_blank()) 
 fqmig
-
+ggsave("nute-migrank.jpg", plot = fqmig, device = "jpeg",
+       dpi = 480)
 
 ## EXPORTS ##
 
