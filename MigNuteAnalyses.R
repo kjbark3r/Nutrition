@@ -566,6 +566,61 @@ pr <- ggplot(data = mignute.ndays,
   ylim(0,50)
 grid.arrange(ad, marg, pr, ncol = 3)
 
+# violinplots - n days exposure - ad/marg/pr
+
+# new df with abbreviated migstatuses
+mignute.ndays.rn <- mignute.ndays
+mignute.ndays.rn$MigStatus <- ifelse(
+  mignute.ndays.rn$MigStatus == "Resident", "Res",
+  ifelse(mignute.ndays.rn$MigStatus == "Intermediate", 
+         "Int", "Mig"))
+# plots
+ad <- ggplot(data = mignute.ndays.rn, 
+  aes(x = MigStatus, y = nAdequate)) +
+  geom_violin(fill="grey") +
+  geom_boxplot(width=.1, outlier.colour=NA) +
+  stat_summary(fun.y=mean, geom="point", 
+               fill="black", shape=21, size=2.5) +
+  labs(title = "Adequate FQ",
+       x = "", y = "# Days Access") +
+  theme(legend.position="none",
+        text = element_text(size=12),
+        axis.text.x = element_text(size = 10),
+        plot.title = element_text(hjust = 0.5)) + 
+  ylim(0,50)
+marg <- ggplot(data = mignute.ndays.rn, 
+  aes(x = MigStatus, y = nMarg)) +
+  geom_violin(fill="grey") +
+  geom_boxplot(width=.1, outlier.colour=NA) +
+  stat_summary(fun.y=mean, geom="point", 
+               fill="black", shape=21, size=2.5) +
+  labs(title = "Marginal FQ", x="", y="") +
+  theme(legend.position="none",
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        text = element_text(size=12),
+        axis.text.x = element_text(size = 10),
+        plot.title = element_text(hjust = 0.5)) + 
+  ylim(0,50)
+pr <- ggplot(data = mignute.ndays.rn, 
+  aes(x = MigStatus, y = nPoor)) +
+  geom_violin(fill="grey") +
+  geom_boxplot(width=.1, outlier.colour=NA) +
+  stat_summary(fun.y=mean, geom="point", 
+               fill="black", shape=21, size=2.5) +
+  labs(title = "Poor FQ", x="", y="") + 
+  theme(legend.position="none",
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        text = element_text(size=12),
+        axis.text.x = element_text(size = 10),
+        plot.title = element_text(hjust = 0.5)) + 
+  ylim(0,50)
+#plot all together
+ndaysplot <- grid.arrange(ad, marg, pr, ncol = 3)
+#export
+ggsave("ndaysaccess", plot = ndaysplot, device = "jpeg",
+       dpi = 300)
 
 # available nutrition across study area
 de14 <- raster("../Vegetation/DE2014.tif")
@@ -650,12 +705,12 @@ ggsave("timeplot-dailyde", plot = tp, device = "jpeg",
 ggsave("homerangesize", plot = hra, device = "jpeg",
        dpi = 480)
 
-#################
-####  Stats  ####
-#################
+################~#
+####   STATS  ####
+################~#
 
-##################################
-## sample sizes, summaries, etc ##
+#################################~#
+## sample sizes, summaries, etc ####
 
 # elk sample size per year
 nmig <- migstatus %>%
@@ -670,6 +725,15 @@ sumtab <- ddply(mignute.avg, "MigStatus", summarise,
                 sd = sd(AvgDE),
                 se = sd/sqrt(N))
 sumtab
+
+# summary stats, avg summer HR area
+any(is.na(mignute.ndays$HRarea))
+sumtab.hr <- ddply(mignute.ndays, "MigStatus", summarise,
+                N = length(HRarea),
+                mean = mean(HRarea),
+                sd = sd(HRarea),
+                se = sd/sqrt(N))
+sumtab.hr
 
 #  diet results-  n spp; pct grass/fb/shrub
 dat.diet <- read.csv("../Vegetation/NSERP_ForagePlants_Summer.csv")
@@ -702,8 +766,8 @@ de2015 <- raster("../Vegetation/de2015.tif")
 summary(de2014)
 summary(de2015)
 
-###############################################
-## diffs in FQ exposure per migratory status ##
+##############################################~#
+## diffs in FQ exposure per migratory status ####
 
 
 ## NDAYS EXPOSURE ##
@@ -776,8 +840,8 @@ summary(aadfq)
   #and migrants seem to be making the best of a bad situation
   
 
-################################################################
-## diffs in ndays exposure to ea nute category per mig status ##
+###############################################################~#
+## diffs in ndays exposure to ea nute category per mig status ####
 
 ## EXCELLENT ##
 
@@ -831,8 +895,8 @@ pdfqt
 # sig diffs mig-res and mig-int. p=0.0508 for int-res
 
 
-#############################################
-## diffs in abundance per migratory status ##
+############################################~#
+## diffs in abundance per migratory status ####
   
 ## AVG FORAGE ABUNDANCE PER DAY ##
 
@@ -863,8 +927,8 @@ summary(afa)
 
 # conclusion: migrants are in areas with higher abundance than residents
 
-########################################
-## diffs in ifbf per migratory status ##
+#######################################~#
+## diffs in ifbf per migratory status ####
 
 # mixed effects anova - lactstat random; migstatus fixed
 mx <- lmer(IFBF ~ NewStatus + (1|LactStatus), data = alllac)
@@ -880,16 +944,16 @@ il
 
 
 
-######################################
-## summarizing ppns r/i/m across years ##
+#####################################~#
+## summarizing ppns r/i/m across years ####
 allppns <- migstatus %>%
   summarize(ppnRes = length(which(MigStatus == "Resident"))/n(),
             ppnInt = length(which(MigStatus == "Intermediate"))/n(),
             ppnMig = length(which(MigStatus == "Migrant"))/n()) %>%
   ungroup()
 
-######################################
-## diffs migstatus ppns 2014 - 2015 ##
+#####################################~#
+## diffs migstatus ppns 2014 - 2015 ####
 
 # compare proportion resident/intermediate/migrant
 # in each year
@@ -906,8 +970,8 @@ write.csv(ppns, file = "migstatus-ppns-per-yr.csv", row.names=F)
   
 
 
-###############################################
-## diffs in home range area by mig status ##
+##############################################~#
+## diffs in home range area by mig status ####
 
 # hr area
 hr <- aov(HRarea ~ MigStatus, data = mignute.ndays)
@@ -932,24 +996,25 @@ summary(hr)
   nadt <- TukeyHSD(aov(HRarea ~ MigStatus, data = mignute.ndays))
   nadt
   #double ditto
-  
-############################################
-## diffs in fecal nitrogen per mig/nonmig ##
+
+
+  #############################################~#
+## diffs in fecal nitrogen per mig/nonmig ####
 
 fnt <- t.test(PctN ~ MigStatus, data = fn)
 fnt
 # insignificant difference
 
 
-###############################################
-## summary info about migratory behavior ##
+##############################################~#
+## summary info about migratory behavior ####
 
 summary(migstatus$VI95)
 hist(migstatus$VI95)
 summary(migstatus$VI50)
 
-###############################################
-## DE per each landcover type ##
+##############################################~#
+## DE per each landcover type ####
 
 dedat <- read.csv("../Vegetation/DE-model-data.csv") %>%
   dplyr::select(DE, landcov, class_name)
@@ -980,15 +1045,16 @@ hist(sub10$DE, xlab = "Mesic Forest (Burn 0-5)")
 hist(sub11$DE, xlab = "Mesic Forest (Burn 6-15)")
 hist(sub12$DE, xlab = "Rx Dry Forest (Burn 0-5)")
 
-######################################
-## sig diffs bt de per landcover type ##
+#####################################~#
+## sig diffs bt de per landcover type ####
 lcnute <- aov(DE ~ class_name, data = dedat)
 summary(lcnute)
 
-######################################
-## just looking at reln bt  ##
 
-##############################################################
+
+
+
+############################################################~##
 #### CUTS AND MISC ####
 
 #############################################

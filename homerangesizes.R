@@ -89,3 +89,8 @@ plot(winhrs, add = T, col = "blue")
 
 winraster <- raster(winhrs)
 writeRaster(winraster, paste("winterkdes"), format="GTiff", overwrite=TRUE)
+
+
+
+#### STATS TESTS AND REPORTING FOR MANUSCRIPT ####
+
