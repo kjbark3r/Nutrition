@@ -574,6 +574,12 @@ mignute.ndays.rn$MigStatus <- ifelse(
   mignute.ndays.rn$MigStatus == "Resident", "Res",
   ifelse(mignute.ndays.rn$MigStatus == "Intermediate", 
          "Int", "Mig"))
+mignute.ndays.rn$MigStatus = factor(
+  mignute.ndays.rn$MigStatus,
+                        levels = c("Res",
+                                   "Int",
+                                   "Mig"),
+                            ordered = TRUE) 
 # plots
 ad <- ggplot(data = mignute.ndays.rn, 
   aes(x = MigStatus, y = nAdequate)) +
