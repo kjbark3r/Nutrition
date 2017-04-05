@@ -727,14 +727,32 @@ nmig <- migstatus %>%
       mutate(Year = ifelse(grepl("-14", IndivYr), 2014, 2015))
 count(nmig, Year == 2014)
 
+# number res, int, mig
+table(migstatus$MigStatus) 
+
 # summary stats, avg DE per day per migstatus
 any(is.na(mignute.avg$AvgDE))
-sumtab <- ddply(mignute.avg, "MigStatus", summarise,
+mignute.avg.t <- dplyr::select(mignute.avg, -Date)
+sumtab <- ddply(mignute.avg.t, "MigStatus", summarise,
                 N = length(AvgDE),
                 mean = mean(AvgDE),
                 sd = sd(AvgDE),
                 se = sd/sqrt(N))
 sumtab
+
+# summary stats, ndays adequate per migstatus
+# also checking median bc data skewed
+any(is.na(mignute.ndays$nAdequate))
+sumtab.n <- ddply(mignute.ndays, "MigStatus", summarise,
+                N = length(nAdequate),
+                mean = mean(nAdequate),
+                median = median(nAdequate),
+                sd = sd(nAdequate),
+                se = sd/sqrt(N))
+sumtab.n
+
+# ndays in summer
+max(avgday$DOY) - min(avgday$DOY)
 
 # summary stats, avg summer HR area
 any(is.na(mignute.ndays$HRarea))
@@ -1061,6 +1079,10 @@ lcnute <- aov(DE ~ class_name, data = dedat)
 summary(lcnute)
 
 
+#####################################~#
+## use of irrig ag by diff behavs####
+
+# never mind, no time for this right now
 
 
 
