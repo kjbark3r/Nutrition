@@ -751,6 +751,18 @@ sumtab.n <- ddply(mignute.ndays, "MigStatus", summarise,
                 se = sd/sqrt(N))
 sumtab.n
 
+# summary stats, ndays irrig ag per migstatus
+# also checking median bc data skewed
+any(is.na(mignute.ndays$nDaysAg))
+sumtab.ag <- ddply(mignute.ndays, "MigStatus", summarise,
+                N = length(nDaysAg),
+                mean = mean(nDaysAg),
+                median = median(nDaysAg),
+                sd = sd(nDaysAg),
+                se = sd/sqrt(N))
+sumtab.ag
+
+
 # ndays in summer
 max(avgday$DOY) - min(avgday$DOY)
 
@@ -1073,17 +1085,36 @@ hist(sub10$DE, xlab = "Mesic Forest (Burn 0-5)")
 hist(sub11$DE, xlab = "Mesic Forest (Burn 6-15)")
 hist(sub12$DE, xlab = "Rx Dry Forest (Burn 0-5)")
 
+lctab <- ddply(dedat, "class_name", summarise,
+                N = length(DE),
+                mean = mean(DE),
+               median = median(DE),
+                sd = sd(DE),
+                se = sd/sqrt(N))
+arrange(lctab, desc(median))
+
+
+
 #####################################~#
 ## sig diffs bt de per landcover type ####
 lcnute <- aov(DE ~ class_name, data = dedat)
 summary(lcnute)
 
 
+
 #####################################~#
 ## use of irrig ag by diff behavs####
 
-# never mind, no time for this right now
+table(mignute.ndays$MigStatus, mignute.ndays$nDaysAg)
 
+dag <- aov(nDaysAg ~ MigStatus, data = mignute.ndays)
+summary(dag)
+# significant
+
+# tukey hsd multiple comparison 
+dagt <- TukeyHSD(aov(nDaysAg ~ MigStatus, data = mignute.ndays))
+dagt  
+# mig sig less than res & int. Res/int no diff
 
 
 ############################################################~##

@@ -33,6 +33,8 @@ if (file.exists(wd_workcomp)) {
     setwd(wd_laptop)
     wd <- wd_laptop
 }
+rm(wd_workcomp, wd_laptop, wd)
+
 
 
 ######################################
@@ -118,6 +120,7 @@ mig <- mig %>%
 write.csv(mig, file = "migstatus.csv", row.names=FALSE)
 
 
+
 #####################################
 ####  Digestible Energy Per Day  ####
 #####################################
@@ -198,6 +201,7 @@ nutedays <- nute %>%
 write.csv(nutedays, file = "nClass-daily-de.csv", row.names=FALSE)
 
 
+
 ##################################
 ####  Forb Abundance Per Day  ####
 ##################################
@@ -262,6 +266,7 @@ habund15 <- ext15 %>%
 
 habund <- rbind(habund14, habund15)
 write.csv(habund, file = "avg-daily-gHerb.csv", row.names=FALSE)
+
 
 
 ###################################
@@ -336,6 +341,8 @@ abund <- habund %>%
   left_join(sabund, by = c("IndivYr", "Date")) 
 write.csv(abund, "avg-daily-g.csv", row.names = FALSE)
 
+
+
 ###########################
 ####  Home Range Area  ####
 ###########################
@@ -390,6 +397,7 @@ writeOGR(hrs, dsn = "../../NSERP/GIS/aOrganized/Shapefiles",
 write.csv(hr.a, file = "homerangeareas.csv", row.names = FALSE)
 
 
+
 ##########################
 ####  Fecal Nitrogen  ####
 ##########################
@@ -406,6 +414,81 @@ fn <- pellets %>%
 write.csv(fn, file = "fecalnitrogen.csv", row.names = FALSE)
 
 
+
+#######################################
+####  Irrigated Ag Access Per Day  ####
+#######################################
+
+
+# DATA #
+
+# elk locations
+locs <- read.csv("../ElkDatabase/collardata-locsonly-equalsampling.csv") %>%
+  dplyr::select(c(AnimalID, Date, Time, Lat, Long, Sex)) 
+locs$Date <- as.Date(locs$Date, format = "%Y-%m-%d")
+locs$Time <- as.numeric(gsub("[[:punct:]]", "", locs$Time))
+locs$IndivYr <- ifelse(locs$Date < "2015-01-01", 
+                       paste(locs$AnimalID, "-14", sep=""),
+                       paste(locs$AnimalID, "-15", sep=""))  
+
+# predicted de rasters (from Vegetation/de_model.R)
+lc14 <- raster("../Vegetation/writtenrasters/covs2014/landcov_14.tif")
+lc15 <- raster("../Vegetation/writtenrasters/covs2015/landcov_15.tif")
+
+# projection definition
+latlong <- CRS("+init=epsg:4326") # WGS84
+
+
+# CALCULATIONS #
+
+# 2014
+smr14 <- locs %>%
+  filter(Sex == "Female")  %>% # not using males for nutrition analysis
+  subset(between(Date, as.Date("2014-07-15"), as.Date("2014-08-31"))) 
+xy14 <- data.frame("x" = smr14$Long, "y" = smr14$Lat) # pull coords
+spdf.ll14 <- SpatialPointsDataFrame(xy14, smr14, proj4string = latlong) #spatial
+spdf14 <- spTransform(spdf.ll14, lc14@crs) # match projection of de tifs
+ext14 <- as.data.frame(extract(lc14, spdf14)) #landcover for each location
+colnames(ext14) <- "Landcov"
+ext14 <- cbind(smr14, ext14) #combine locations with extracted de data
+
+landcov14 <- ext14 %>%
+  mutate(IrrigAg = ifelse(Landcov == 7, 1, 0)) %>%
+  group_by(IndivYr, Date) %>%
+  summarise(nLocsAg = sum(IrrigAg, na.rm=T)) %>%
+  mutate(InAg = ifelse(nLocsAg == 0, 0, 1)) %>%
+  ungroup()
+
+# 2015
+smr15 <- locs %>%
+  filter(Sex == "Female")  %>% # not using males for nutrition analysis
+  subset(between(Date, as.Date("2015-07-15"), as.Date("2015-08-31"))) 
+xy15 <- data.frame("x" = smr15$Long, "y" = smr15$Lat)
+spdf.ll15 <- SpatialPointsDataFrame(xy15, smr15, proj4string = latlong) #spatial
+spdf15 <- spTransform(spdf.ll15, lc15@crs) # match projection of de tifs
+ext15 <- as.data.frame(extract(lc15, spdf15)) #landcover for each location
+colnames(ext15) <- "Landcov"
+ext15 <- cbind(smr15, ext15) #combine locations with extracted de data
+
+landcov15 <- ext15 %>%
+  mutate(IrrigAg = ifelse(Landcov == 7, 1, 0)) %>%
+  group_by(IndivYr, Date) %>%
+  summarise(nLocsAg = sum(IrrigAg, na.rm=T)) %>%
+  mutate(InAg = ifelse(nLocsAg == 0, 0, 1)) %>%
+  ungroup()
+
+# COMBINE YEARS AND COUNT TOTAL DAYS PER ELK#
+
+lc <- rbind(landcov14, landcov15)
+write.csv(lc, file = "agaccess-perelk-perday.csv", row.names=FALSE)
+
+lcsum <- lc %>%
+  group_by(IndivYr) %>%
+  summarise(nDaysAg = sum(InAg)) %>%
+  ungroup()
+write.csv(lcsum, file = "agaccess-perelk-ndays.csv", row.names=F)
+
+
 ###########################################################################
 
 
@@ -420,6 +503,7 @@ nute <- read.csv("avg-daily-de.csv")
 nutedays <- read.csv("nClass-daily-de.csv")
 abund <- read.csv("avg-daily-g.csv")
 hr <- read.csv("homerangeareas.csv")
+lcsum <- read.csv("landcover-access-perelk.csv")
 
 # combine forage quality and quantity
 frg <- left_join(nute, abund, by = c("IndivYr", "Date")) %>%
@@ -440,5 +524,6 @@ write.csv(mignute.avg, file = "mig-avgforage.csv", row.names=F)
 mignute.ndays <- nutedays %>%
   right_join(mig, by = "IndivYr") %>%
   left_join(bod, by = "AnimalID") %>%
-  left_join(hr, by = "IndivYr")
+  left_join(hr, by = "IndivYr") %>%
+  left_join(lcsum, by = "IndivYr")
 write.csv(mignute.ndays, file = "mig-ndaysDE.csv", row.names=F)
