@@ -511,11 +511,12 @@ ggsave("timeplot.jpg", plot = tp, device = "jpeg",
 avgde <- ggplot(data = avgday.indiv, 
        aes(x = MigStatus, y = AvgDayDE)) +
        geom_boxplot(aes(fill = MigStatus)) +
+       scale_fill_grey(start = 0, end = .9) +
+       theme_bw() +
        geom_hline(yintercept=2.75) +
-       labs(x = "", y = "Average Nutrition (kcal/g)") +
+       labs(x = "", y = "Average Forage Quality (kcal/g)") +
               theme(legend.position="none",
                     text = element_text(size=20))
-
 avgde
 
 # n days adequate/inadequate exposure by mig status
