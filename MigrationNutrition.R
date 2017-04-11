@@ -138,8 +138,10 @@ locs$IndivYr <- ifelse(locs$Date < "2015-01-01",
                        paste(locs$AnimalID, "-15", sep=""))  
 
 # predicted de rasters (from Vegetation/de_model.R)
-de14 <- raster("../Vegetation/DE2014.tif")
-de15 <- raster("../Vegetation/DE2015.tif")
+#de14 <- raster("../Vegetation/DE2014.tif")
+#de15 <- raster("../Vegetation/DE2015.tif")
+de14 <- raster("pred_DE_SUMR_2014.tif")
+de15 <- raster("pred_DE_SUMR_2015.tif")
 
 # projection definition
 latlong <- CRS("+init=epsg:4326") # WGS84
@@ -189,7 +191,7 @@ nute$DEclass <- ifelse(nute$AvgDE >= 2.9, "Excellent", #Cook FQ definitions
                 ifelse(nute$AvgDE >= 2.75 & nute$AvgDE < 2.9, "Good",
                 ifelse(nute$AvgDE > 2.40 & nute$AvgDE < 2.75, "Marginal",
                        "Poor")))
-write.csv(nute, file = "avg-daily-de.csv", row.names=FALSE)
+write.csv(nute, file = "avg-daily-de-GENERALMODEL.csv", row.names=FALSE)
 
 nutedays <- nute %>%
   group_by(IndivYr) %>%
@@ -198,7 +200,7 @@ nutedays <- nute %>%
             nMarg = length(which(DEclass == "Marginal")),
             nPoor = length(which(DEclass == "Poor"))) %>%
     ungroup()
-write.csv(nutedays, file = "nClass-daily-de.csv", row.names=FALSE)
+write.csv(nutedays, file = "nClass-daily-de-GENERALMODEL.csv", row.names=FALSE)
 
 
 
@@ -444,7 +446,7 @@ latlong <- CRS("+init=epsg:4326") # WGS84
 # 2014
 smr14 <- locs %>%
   filter(Sex == "Female")  %>% # not using males for nutrition analysis
-  subset(between(Date, as.Date("2014-07-15"), as.Date("2014-08-31"))) 
+  subset(between(Date, as.Date("2014-07-14"), as.Date("2014-08-31"))) 
 xy14 <- data.frame("x" = smr14$Long, "y" = smr14$Lat) # pull coords
 spdf.ll14 <- SpatialPointsDataFrame(xy14, smr14, proj4string = latlong) #spatial
 spdf14 <- spTransform(spdf.ll14, lc14@crs) # match projection of de tifs
@@ -503,9 +505,11 @@ nute <- read.csv("avg-daily-de.csv")
 nutedays <- read.csv("nClass-daily-de.csv")
 abund <- read.csv("avg-daily-g.csv")
 hr <- read.csv("homerangeareas.csv")
-lcsum <- read.csv("landcover-access-perelk.csv")
+lcsum <- read.csv("agaccess-perelk-ndays.csv")
 
 # combine forage quality and quantity
+abund$Date <- as.Date(abund$Date)
+nute$Date <- as.Date(nute$Date)
 frg <- left_join(nute, abund, by = c("IndivYr", "Date")) %>%
   mutate(AvgGForage = AvgGHerb+AvgGShrub)
 
@@ -518,7 +522,7 @@ mignute.avg <- mig %>%
   filter(!is.na(MigRank)) %>% #remove Ski Hill elk
   left_join(bod, by = "AnimalID") %>%
   left_join(hr, by = "IndivYr") 
-write.csv(mignute.avg, file = "mig-avgforage.csv", row.names=F)
+write.csv(mignute.avg, file = "mig-avgforage-GENERALMODEL.csv", row.names=F)
 
 # nutrition as number of days with each level of DE
 mignute.ndays <- nutedays %>%
@@ -526,4 +530,4 @@ mignute.ndays <- nutedays %>%
   left_join(bod, by = "AnimalID") %>%
   left_join(hr, by = "IndivYr") %>%
   left_join(lcsum, by = "IndivYr")
-write.csv(mignute.ndays, file = "mig-ndaysDE.csv", row.names=F)
+write.csv(mignute.ndays, file = "mig-ndaysDE-GENERALMODEL.csv", row.names=F)

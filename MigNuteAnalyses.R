@@ -33,7 +33,7 @@ rm(wd_workcomp, wd_laptop)
 # ORIGINAL DATA (from MigrationNutrition.R) #
 
 # average DE exposure per indiv per day
-mignute.avg <- read.csv("mig-avgforage.csv") %>%
+mignute.avg <- read.csv("mig-avgforage-GENERALMODEL.csv") %>%
   within(Date <- as.POSIXlt(Date, format = "%Y-%m-%d")) %>%
   transform(MigStatus = factor(MigStatus,
                         levels = c("Resident",
@@ -43,7 +43,7 @@ mignute.avg <- read.csv("mig-avgforage.csv") %>%
 mignute.avg$DOY <- mignute.avg$Date$yday #day of year
 
 # number days exposure to each nutrition category per indiv
-mignute.ndays <- read.csv("mig-ndaysDE.csv") %>%
+mignute.ndays <- read.csv("mig-ndaysDE-GENERALMODEL.csv") %>%
   transform(MigStatus = factor(MigStatus,
                         levels = c("Resident",
                                    "Intermediate",
@@ -69,13 +69,13 @@ fn$DOY <- fn$Date$yday
 # PER MIG STATUS average forage values per day
 avgday <- mignute.avg %>%
   dplyr::select(-Date) %>%
-  group_by(DOY, MigStatus) %>%
-  summarise(AvgDayDE = mean(AvgDE, na.rm=T),
+  dplyr::group_by(DOY, MigStatus) %>%
+  dplyr::summarise(AvgDayDE = mean(AvgDE, na.rm=T),
             AvgDayGHerb = mean(AvgGHerb, na.rm=T),
             AvgDayGShrub = mean(AvgGShrub, na.rm=T),
             AvgDayGForage = mean(AvgGForage, na.rm=T)) %>%
-  ungroup() %>%
-  mutate(DEclass = ifelse(AvgDayDE >= 2.9, "Excellent", 
+  dplyr::ungroup() %>%
+  dplyr::mutate(DEclass = ifelse(AvgDayDE >= 2.9, "Excellent", 
                    ifelse(AvgDayDE >= 2.75 & AvgDayDE < 2.9, "Good",
                    ifelse(AvgDayDE > 2.40 & AvgDayDE < 2.75, "Marginal",
                           "Poor")))) 
@@ -489,7 +489,7 @@ ggplot(data = avgday.indiv) +
 ####  Actual presentation graphs  ####
 ######################################
 
-# timeplot DE by day
+# timeplot DE by day ####
 avgday.date <- avgday %>%
   mutate(Date = as.Date(DOY, origin = "2014-01-01"))
 tp <-  ggplot(avgday.date, 
@@ -507,7 +507,7 @@ tp
 ggsave("timeplot.jpg", plot = tp, device = "jpeg",
        dpi = 300)
 
-# avg de exposure by mig status
+# avg de exposure by mig status ####
 avgde <- ggplot(data = avgday.indiv, 
        aes(x = MigStatus, y = AvgDayDE)) +
        geom_boxplot(aes(fill = MigStatus)) +
@@ -519,7 +519,7 @@ avgde <- ggplot(data = avgday.indiv,
                     text = element_text(size=20))
 avgde
 
-# n days adequate/inadequate exposure by mig status
+# n days adequate/inadequate exposure by mig status ####
 ad <- ggplot(data = mignute.ndays, 
        aes(x = MigStatus, y = nAdequate)) +
        geom_boxplot(aes(fill = MigStatus)) +
@@ -538,7 +538,7 @@ inad <- ggplot(data = mignute.ndays,
 inad
 
 
-# n days exposure - adequate/marginal/poor
+# n days exposure - adequate/marginal/poor ####
 ad <- ggplot(data = mignute.ndays, 
   aes(x = MigStatus, y = nAdequate)) +
   geom_boxplot(aes(fill = MigStatus)) +
@@ -570,7 +570,7 @@ pr <- ggplot(data = mignute.ndays,
   ylim(0,50)
 grid.arrange(ad, marg, pr, ncol = 3)
 
-# violinplots - n days exposure - ad/marg/pr
+# violinplots - n days exposure - ad/marg/pr ####
   # new df with abbreviated migstatuses
 mignute.ndays.rn <- mignute.ndays
 mignute.ndays.rn$MigStatus <- ifelse(
@@ -631,7 +631,7 @@ ndaysplot <- grid.arrange(ad, marg, pr, ncol = 3)
 ggsave("ndaysaccess", plot = ndaysplot, device = "jpeg",
        dpi = 300)
 
-# available nutrition across study area
+# available nutrition across study area ####
 de14 <- raster("../Vegetation/DE2014.tif")
 de15 <- raster("../Vegetation/DE2015.tif")
 par(mfrow = c(1,2))
@@ -639,7 +639,7 @@ plot(de14, main = " 2014 Forage Quality (kcal/m^2)")
 plot(de15, main = "2015 Forage Quality (kcal/m^2)")
 
 
-# DE by lifeform and phenophase
+# DE by lifeform and phenophase ####
 
 # read in raw data
 de.dat <- read.csv("../Vegetation/DE-bylifeform.csv")
@@ -672,7 +672,7 @@ ggplot(data = de, aes(x = Stage, y = DE, fill = LifeForm)) +
   labs(x = "", y = "Digestibility (kcal)")
 
 
-# home range area
+# home range area ####
 hra <- ggplot(data = mignute.ndays, 
            aes(x = MigStatus, y = HRarea)) +
            geom_boxplot(aes(fill = MigStatus)) +
@@ -683,7 +683,7 @@ hra <- ggplot(data = mignute.ndays,
         text = element_text(size=20))
 hra
 
-## home range area ~ migstatus
+## home range area ~ migstatus ####
 hrmig <- ggplot(mignute.ndays,
                 aes(x = MigRank, y = HRarea)) +
   ylab("Home range size (ha)") +
@@ -692,7 +692,7 @@ hrmig <- ggplot(mignute.ndays,
 hrmig
 
 
-## daily nute ~ migrank
+## daily nute ~ migrank ####
 fqmig <- ggplot(avgday.indiv,
                 aes(x = MigRank, y = AvgDayDE)) +
   labs(x = "Resident                                                   Migrant", 
@@ -819,22 +819,6 @@ summary(nadfq)
 #super significant
 #checking pairwise comparisons
 
-  # bonferroni multiple comparison: ndaysad
-  nadb <- pairwise.t.test(x = mignute.ndays$nAdequate, 
-                          g = mignute.ndays$MigStatus, 
-                          p.adjust.method = "bonf")
-  nadb
-  #migrants significantly diff from both
-  #residents and intermediates sig diff too, but less so
-  
-  # holm multiple comparison: ndaysad
-  nadh <- pairwise.t.test(x = mignute.ndays$nAdequate, 
-                          g = mignute.ndays$MigStatus, 
-                          p.adjust.method = "holm")
-  nadh
-  #migrants significantly diff from both
-  #residents and intermediates sig diff too, but less so
- 
   # tukey hsd multiple comparison - ndays de
   nadt <- TukeyHSD(aov(nAdequate ~ MigStatus, data = mignute.ndays))
   nadt
@@ -849,21 +833,6 @@ aadfq <- aov(AvgDayDE ~ MigStatus, data = avgday.indiv)
 summary(aadfq)
 #super significant
 #checking pairwise comparisons
-
-  # bonferroni multiple comparison: avgde
-  aadb <- pairwise.t.test(x = avgday.indiv$AvgDayDE, 
-                          g = avgday.indiv$MigStatus, 
-                          p.adjust.method = "bonf")
-  aadb
-  #says residents and intermediates not significantly diff
-  #migrants significantly diff from both
-
-  # holm multiple comparison: avgde
-  aadh <- pairwise.t.test(x = avgday.indiv$AvgDayDE, 
-                          g = avgday.indiv$MigStatus, 
-                          p.adjust.method = "holm")
-  aadh
-  #says all 3 are different 
 
   # tukey hsd multiple comparison - avgde
   aadt <- TukeyHSD(aov(AvgDayDE ~ MigStatus, data = avgday.indiv))
@@ -1057,6 +1026,7 @@ summary(migstatus$VI50)
 ##############################################~#
 ## DE per each landcover type ####
 
+# [see code below this part for general model version] #
 dedat <- read.csv("../Vegetation/DE-model-data.csv") %>%
   dplyr::select(DE, landcov, class_name)
 sub1 <- filter(dedat, landcov == 1)
@@ -1071,7 +1041,6 @@ sub9 <- filter(dedat, landcov == 9)
 sub10 <- filter(dedat, landcov == 10)
 sub11 <- filter(dedat, landcov == 11)
 sub12 <- filter(dedat, landcov == 12)
-
 par(mfrow=c(3,4))
 hist(sub1$DE, xlab = "Mesic Forest (Burn >15)")
 hist(sub2$DE, xlab = "Dry Forest (Burn >15)")
@@ -1093,7 +1062,76 @@ lctab <- ddply(dedat, "class_name", summarise,
                 sd = sd(DE),
                 se = sd/sqrt(N))
 arrange(lctab, desc(median))
+write.csv(lctab, "de-by-landcover.csv", row.names=F)
 
+
+
+## general model (not nsapph-specific) ##
+
+# read in plot data, remove nsapph-specific DE estimates
+plotdat <- read.csv("../Vegetation/DE-model-data.csv") %>%
+  dplyr::select(-DE) %>%
+  within(Date <- as.Date(Date))
+# read in general DE prediction tifs
+library(raster)
+dedat14 <- raster("pred_DE_SUMR_2014.tif")
+dedat15 <- raster("pred_DE_SUMR_2015.tif")
+# projection definition
+latlong <- CRS("+init=epsg:4326") # WGS84
+# extract 2014 predicted DE values
+smr14 <- plotdat %>%
+  subset(between(Date, as.Date("2014-07-15"), as.Date("2014-08-31"))) 
+xy14 <- data.frame("x" = smr14$Long, "y" = smr14$Lat) # pull coords
+spdf.ll14 <- SpatialPointsDataFrame(xy14, smr14, proj4string = latlong) #spatial
+spdf14 <- spTransform(spdf.ll14, dedat14@crs) # match projection of de tifs
+ext14 <- as.data.frame(extract(dedat14, spdf14)) #landcover for each location
+colnames(ext14) <- "DE"
+ext14 <- cbind(smr14, ext14) #combine locations with extracted de data
+# extract 2015 predicted DE values
+smr15 <- plotdat %>%
+  subset(between(Date, as.Date("2015-07-15"), as.Date("2015-08-31"))) 
+xy15 <- data.frame("x" = smr15$Long, "y" = smr15$Lat) # pull coords
+spdf.ll15 <- SpatialPointsDataFrame(xy15, smr15, proj4string = latlong) #spatial
+spdf15 <- spTransform(spdf.ll15, dedat15@crs) # match projection of de tifs
+ext15 <- as.data.frame(extract(dedat15, spdf15)) #landcover for each location
+colnames(ext15) <- "DE"
+ext15 <- cbind(smr15, ext15) #combine locations with extracted de data
+# combine 2014 and 2015
+newde <- rbind(ext14, ext15)
+sub1 <- filter(newde, landcov == 1)
+sub2 <- filter(newde, landcov == 2)
+sub3 <- filter(newde, landcov == 3)
+sub4 <- filter(newde, landcov == 4)
+sub5 <- filter(newde, landcov == 5)
+sub6 <- filter(newde, landcov == 6)
+sub7 <- filter(newde, landcov == 7)
+sub8 <- filter(newde, landcov == 8)
+sub9 <- filter(newde, landcov == 9)
+sub10 <- filter(newde, landcov == 10)
+sub11 <- filter(newde, landcov == 11)
+sub12 <- filter(newde, landcov == 12)
+par(mfrow=c(3,4))
+hist(sub1$DE, xlab = "Mesic Forest (Burn >15)")
+hist(sub2$DE, xlab = "Dry Forest (Burn >15)")
+hist(sub3$DE, xlab = "Grass/Shrub/Open Woodland")
+hist(sub4$DE, xlab = "Dry Ag")
+hist(sub5$DE, xlab = "Valley Bottom Riparian")
+hist(sub6$DE, xlab = "Montane Riparian")
+hist(sub7$DE, xlab = "Irrigated Ag")
+hist(sub8$DE, xlab = "Dry Forest (Burn 0-5)")
+hist(sub9$DE, xlab = "Dry Forest (Burn 6-15)")
+hist(sub10$DE, xlab = "Mesic Forest (Burn 0-5)")
+hist(sub11$DE, xlab = "Mesic Forest (Burn 6-15)")
+hist(sub12$DE, xlab = "Rx Dry Forest (Burn 0-5)")
+
+lctab <- ddply(newde, "class_name", summarise,
+                N = length(DE),
+                mean = mean(DE),
+               median = median(DE),
+                sd = sd(DE),
+                se = sd/sqrt(N))
+arrange(lctab, desc(median))
+write.csv(lctab, "de-by-landcover-GENERALMODEL.csv", row.names=F)
 
 
 #####################################~#
