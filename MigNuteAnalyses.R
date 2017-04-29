@@ -489,7 +489,7 @@ ggplot(data = avgday.indiv) +
 ####  Actual presentation graphs  ####
 ######################################
 
-# timeplot DE by day ####
+# timeplot DE by day - b&w ####
 avgday.date <- avgday %>%
   mutate(Date = as.Date(DOY, origin = "2014-01-01"))
 tp <-  ggplot(avgday.date, 
@@ -500,24 +500,59 @@ tp <-  ggplot(avgday.date,
     geom_smooth(color = "black")+
               geom_hline(yintercept=2.75) +
               labs(x = "", 
-                   y = "Available Nutrition (kcal/g of forage)") +
+                   y = "Forage quality (kcal/g of forage)") +
               theme(legend.title=element_blank(),
                     text = element_text(size=12))
 tp
-ggsave("timeplot.jpg", plot = tp, device = "jpeg",
+ggsave("timeplot-bw.jpg", plot = tp, device = "jpeg",
        dpi = 300)
 
-# avg de exposure by mig status ####
+
+# timeplot DE by day - color ####
+avgday.date <- avgday %>%
+  mutate(Date = as.Date(DOY, origin = "2014-01-01"))
+tp2 <-  ggplot(avgday.date, 
+              aes(Date, AvgDayDE, 
+                  shape = MigStatus,
+                  colour = MigStatus)) +
+              geom_point() +
+    geom_smooth()+
+              geom_hline(yintercept=2.75) +
+              labs(x = "", 
+                   y = "Forage quality (kcal/g)") +
+              theme(legend.title=element_blank(),
+                    text = element_text(size=20),
+                    axis.text.x = element_text(size = 20))
+tp2
+ggsave("timeplot-color.jpg", plot = tp2, device = "jpeg",
+       dpi = 300)
+
+
+# avg de exposure by mig status - b&w ####
 avgde <- ggplot(data = avgday.indiv, 
        aes(x = MigStatus, y = AvgDayDE)) +
        geom_boxplot(aes(fill = MigStatus)) +
        scale_fill_grey(start = 0, end = .9) +
        theme_bw() +
        geom_hline(yintercept=2.75) +
-       labs(x = "", y = "Average Forage Quality (kcal/g)") +
+       labs(x = "", y = "Forage Quality (kcal/g)") +
               theme(legend.position="none",
                     text = element_text(size=20))
 avgde
+
+
+# avg de exposure by mig status - color ####
+avgde <- ggplot(data = avgday.indiv, 
+       aes(x = MigStatus, y = AvgDayDE)) +
+       geom_boxplot(aes(fill = MigStatus)) +
+       geom_hline(yintercept=2.75) +
+       labs(x = "", y = "Forage Quality (kcal/g)") +
+              theme(legend.position="none",
+                    text = element_text(size=20))
+avgde
+ggsave("avgde-color.jpg", plot = avgde, device = "jpeg",
+       dpi = 300)
+
 
 # n days adequate/inadequate exposure by mig status ####
 ad <- ggplot(data = mignute.ndays, 
@@ -545,8 +580,9 @@ ad <- ggplot(data = mignute.ndays,
   labs(title = "Adequate",
        x = "", y = "# Days Access") +
   theme(legend.position="none",
-        text = element_text(size=15),
-        axis.text.x = element_text(size = 10)) + 
+        text = element_text(size=20),
+        axis.text.x = element_text(size = 13),
+        plot.title = element_text(hjust = 0.5)) + 
   ylim(0,50)
 marg <- ggplot(data = mignute.ndays, 
   aes(x = MigStatus, y = nMarg)) +
@@ -555,8 +591,9 @@ marg <- ggplot(data = mignute.ndays,
   theme(legend.position="none",
         axis.text.y=element_blank(),
         axis.ticks.y=element_blank(),
-        text = element_text(size=15),
-        axis.text.x = element_text(size = 10)) + 
+        text = element_text(size=20),
+        axis.text.x = element_text(size = 13),
+        plot.title = element_text(hjust = 0.5)) + 
   ylim(0,50)
 pr <- ggplot(data = mignute.ndays, 
   aes(x = MigStatus, y = nPoor)) +
@@ -565,10 +602,14 @@ pr <- ggplot(data = mignute.ndays,
   theme(legend.position="none",
         axis.text.y=element_blank(),
         axis.ticks.y=element_blank(),
-        text = element_text(size=15),
-        axis.text.x = element_text(size = 10)) + 
+        text = element_text(size=20),
+        axis.text.x = element_text(size = 13),
+        plot.title = element_text(hjust = 0.5)) + 
   ylim(0,50)
-grid.arrange(ad, marg, pr, ncol = 3)
+ndy <- grid.arrange(ad, marg, pr, ncol = 3)
+ndy
+ggsave("ndays-exposure.jpg", plot = ndy, device = "jpeg",
+       dpi = 300)
 
 # violinplots - n days exposure - ad/marg/pr ####
   # new df with abbreviated migstatuses
@@ -696,7 +737,7 @@ hrmig
 fqmig <- ggplot(avgday.indiv,
                 aes(x = MigRank, y = AvgDayDE)) +
   labs(x = "Resident                                                   Migrant", 
-       y = "Nutrition (kcal/g)") +
+       y = "Forage Quality (kcal/g)") +
   geom_smooth(color = "black")+
   geom_hline(yintercept=2.75) +
   theme(text = element_text(size=20),

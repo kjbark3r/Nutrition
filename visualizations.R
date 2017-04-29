@@ -32,11 +32,12 @@ if (file.exists(wd_workcomp)) {setwd(wd_workcomp)
 } else {setwd(wd_laptop)}
 rm(wd_workcomp, wd_laptop)
 
-memory.limit(size = 7500000)
 
 ~~~~~~~~~~~~~~~~~
-####  Data  ####
+####  ELK  ####
 ~~~~~~~~~~~~~~~~~
+
+#### 3D kud images ####
 
 # read & prep elk locations (from Access DB, processed in ElkDatabase/dataprep.R)
 locs <- read.csv("../ElkDatabase/collardata-locsonly-equalsampling.csv") %>%
@@ -79,7 +80,7 @@ stpln.sum <- spTransform(ll.sum, stateplane)
 kud.sum <- kernelUD(stpln.sum) #create kde 
 vol.sum <- getvolumeUD(kud.sum) #create ud
 rast.sum <- raster(vol.sum)
-plot3D(rast.sum) #hoooooolyfuckingshit
+plot3D(rast.sum) 
 
 
 
@@ -113,3 +114,110 @@ plot3D(rast.sum) #hoooooolyfuckingshit
 # beginning to work on plotting the acual overlap 
 # need to feed the below data that includes both seasons for same indiv
 vol <- kerneloverlaphr(kud.sum, method = "VI", percent = 95, conditional = TRUE)
+
+
+
+~~~~~~~~~~~~~~~~~
+####  VEG  ####
+~~~~~~~~~~~~~~~~~
+
+
+#### nute per landcover ####
+
+
+# data #
+lc <- read.csv("../Vegetation/DE-model-data.csv")
+de <- read.csv("de-by-landcover.csv")
+
+
+# violin/boxplot #
+lc$class_name <- factor(lc$class_name,
+                        levels = c("Mesic Forest (Burn >15)",
+                                   "Dry Forest Burn 6-15",
+                                   "Mesic Forest Burn 6-15",
+                                   "Dry Ag",
+                                   "Mesic Forest Burn 0-5",
+                                   "Grass/Shrub/Open Woodland",
+                                   "Montane Riparian",
+                                   "Dry Forest (Burn >15)",
+                                   "Rx Dry Forest Burn 0-5",
+                                   "Valley Bottom Riparian",
+                                   "Dry Forest Burn 0-5",
+                                   "Irrigated Ag"))
+viol <- ggplot(lc, aes(y = DE, x = class_name)) +
+  geom_violin() +
+  geom_boxplot()
+viol
+
+
+# dotplot #
+## now with programmatically defined factor orders! ##
+
+
+
+de <- read.csv("de-by-landcover.csv")
+
+de <- de %>%
+  rename(Landcover = class_name) %>%
+  transform(Landcover = ifelse(Landcover == "Irrigated Ag",
+                             "Irrigated Agricultural Land", 
+                             ifelse(Landcover == "Rx Dry Forest Burn 0-5",
+                                    "Dry Forest - recent prescribed burn",
+                             ifelse(Landcover == "Dry Forest Burn 0-5",
+                                    "Dry Forest - recent wildfire",
+                             ifelse(Landcover == "Dry Ag",
+                                    "Non-irrigated Agricultural Land",
+                             ifelse(Landcover == "Mesic Forest Burn 0-5",
+                                    "Wet Forest - recent wildfire",
+                             ifelse(Landcover == "Mesic Forest Burn 6-15",
+                                    "Wet Forest - mid-successional",
+                             ifelse(Landcover == "Dry Forest Burn 6-15",
+                                   "Dry Forest - mid-successional",
+                             ifelse(Landcover == "Mesic Forest (Burn >15)",
+                                    "Wet forest - late successional",
+                             ifelse(Landcover == "Dry Forest (Burn >15)",
+                                    "Dry Forest - late successional",
+                                    paste(Landcover))))))))))) 
+de$Landcover <- factor(de$Landcover,
+                        levels = rev(de$Landcover[order(de$mean)]),
+                        ordered = TRUE)
+
+
+dot <- ggplot(data = de, 
+              aes(y = mean, x = Landcover,
+                  ymin = mean-2*sd,
+                  ymax = mean+2*sd)) +
+  geom_point(position = position_dodge(width = 0.2)) +
+        geom_errorbar(position = position_dodge(width = 0.2), 
+                      width = 0.1) +
+  geom_hline(yintercept = 2.75) +
+  geom_hline(yintercept = 2.9, linetype="dotted") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        text = element_text(size = 15)) +
+  labs(x = "Land cover type", y = "Forage Quality (kcal/g)") 
+dot
+                  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
