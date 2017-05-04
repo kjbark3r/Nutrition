@@ -158,7 +158,7 @@ viol
 de <- read.csv("de-by-landcover.csv")
 
 de <- de %>%
-  rename(Landcover = class_name) %>%
+  dplyr::rename(Landcover = class_name) %>%
   transform(Landcover = ifelse(Landcover == "Irrigated Ag",
                              "Irrigated Agricultural Land", 
                              ifelse(Landcover == "Rx Dry Forest Burn 0-5",
@@ -179,7 +179,7 @@ de <- de %>%
                                     "Dry Forest - late successional",
                                     paste(Landcover))))))))))) 
 de$Landcover <- factor(de$Landcover,
-                        levels = rev(de$Landcover[order(de$mean)]),
+                        levels = de$Landcover[order(de$mean)],
                         ordered = TRUE)
 
 
@@ -198,6 +198,16 @@ dot <- ggplot(data = de,
 dot
                   
 
+horiz <- ggplot(data = de, 
+              aes(y = Landcover, x = mean,
+                  xmin = mean-2*sd,
+                  xmax = mean+2*sd)) +
+  geom_point(size = 3) +
+        geom_errorbarh() +
+  geom_vline(xintercept = 2.75) +
+  theme(text = element_text(size = 18)) +
+  labs(x = "Forage Quality (kcal/g)", y = "") 
+horiz
 
 
 
