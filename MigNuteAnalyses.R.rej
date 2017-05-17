@@ -1,0 +1,14 @@
+diff a/MigNuteAnalyses.R b/MigNuteAnalyses.R	(rejected hunks)
+@@ -457,6 +457,12 @@
+ plot(gfor, main = "Forage Quantity (g/m^2)")
+ 
+ 
++# freq distn of avgdayde by migstatus
++ggplot(data = avgday.indiv) +
++  geom_histogram(aes(x = AvgDayDE,
++                     y = ..count..,
++                     fill = MigStatus))
++
+ ######################################
+ ####  Actual presentation graphs  ####
+ ######################################
