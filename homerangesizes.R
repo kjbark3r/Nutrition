@@ -31,10 +31,6 @@ memory.limit(size = 7500000)
 
 #### DATA & SETUP ####
 
-# read in predicted de rasters (from Vegetation/de_model.R)
-de14 <- raster("../Vegetation/DE2014.tif")
-de15 <- raster("../Vegetation/DE2015.tif")
-
 
 # read & prep elk locations (from Access DB, processed in ElkDatabase/dataprep.R)
 locs <- read.csv("../ElkDatabase/collardata-locsonly-equalsampling.csv") %>%
@@ -63,8 +59,8 @@ hr.a <- as.data.frame(hrs) %>%
   rename(IndivYr = id, HRarea = area)
 
 write.csv(hr.a, file = "homerangeareas.csv", row.names = FALSE)
-#sumraster <- raster(kud)
-#writeRaster(sumraster, paste("summerkdes"), format="GTiff", overwrite=TRUE)
+sumraster <- raster(kud)
+writeRaster(sumraster, paste("summerkdes"), format="GTiff", overwrite=TRUE)
 
 ####  REDO FOR WINTER TO MAKE PRESN MAPS ####
 # read & prep elk locations (from Access DB, processed in ElkDatabase/dataprep.R)
@@ -83,14 +79,17 @@ stpln <- spTransform(ll, stateplane)
 winkud <- kernelUD(stpln[,7]) #create kde for each indiv (7=IndivYr)
 winhrs <- getverticeshr(winkud)
 
-plot(de14)
-plot(hrs, add = T)
-plot(winhrs, add = T, col = "blue")
-
 winraster <- raster(winhrs)
 writeRaster(winraster, paste("winterkdes"), format="GTiff", overwrite=TRUE)
 
 
+# sanity check to make sure they look reasonable
+# with predicted de raster from Vegetation/de_model.R as background
+de14 <- raster("../Vegetation/DE2014.tif")
+plot(de14) 
+plot(hrs, add = T)
+plot(winhrs, add = T, col = "blue")
 
-#### STATS TESTS AND REPORTING FOR MANUSCRIPT ####
+
+
 

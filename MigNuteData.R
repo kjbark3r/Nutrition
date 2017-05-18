@@ -1,15 +1,44 @@
-###########################################################
+                                      ####NAVIGATE HERE####
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 #   PROCESSING AND COMBINING ALL DATA RELATED TO THE      #
 # NUTRITIONAL CONSEQUENCES OF VARYING MIGRATORY BEHAVIORS #
 #        -in preparation for actual analyses-             #
 #               NSERP - KRISTIN BARKER                    #
 #                 NOV 2016 / JAN 2017                     #
-###########################################################
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 
 
-#################
+## this code
+## reads in, formats, and combines several data sources
+## in preparation for nutrition-related analyses
+## (not all these data sources were ultimately used/reported)
+##
+## each data source has its own section of code, 
+## which reads in, formats, and exports the data 
+## in a format that can be combined with all the other data sources
+##
+## the final section of this code
+## reads in the exported data from each data source
+## and combines them all
+## 
+## data sources are:
+    ## body condition & pregnancy (measurements taken at capture)
+    ## migratory behavior (defining behaviors discretely and along a continuum)
+    ## various nutrition metrics (digestible energy and biomass)
+    ## home range area
+    ## fecal nitrogen
+    ## number of days' irrigated ag access
+##
+##
+## quickly navigate between individual sections of this code in RStudio
+## by clicking the "NAVIGATE HERE" button at the bottom left of this pane
+
+
+
+
+## ## ## ## ## ## 
 ####  Setup  ####
-#################
+## ## ## ## ## ## 
 
 
 # PACKAGES #
@@ -37,9 +66,9 @@ rm(wd_workcomp, wd_laptop, wd)
 
 
 
-######################################
+## ## ## ## ## ## ## ## ## ## ## ## ## 
 ####  Body Condition & Pregnancy  ####
-######################################
+## ## ## ## ## ## ## ## ## ## ## ## ## 
 
 
 # DATABASE CONNECTION # (requires running R in 32 bit on most computers)
@@ -72,9 +101,9 @@ caploc <- sqlQuery(channel, paste("select AnimalID, Location
 write.csv(caploc, file = "capture-locations.csv", row.names=F)
 
 
-##############################
+## ## ## ## ## ## ## ## ## ### 
 ####  Migratory Behavior  ####
-##############################
+## ## ## ## ## ## ## ## ## ### 
 
 
 # DATA #
@@ -121,9 +150,9 @@ write.csv(mig, file = "migstatus.csv", row.names=FALSE)
 
 
 
-#####################################
+## ## ## ## ## ## ## ## ## ## ## ## # 
 ####  Digestible Energy Per Day  ####
-#####################################
+## ## ## ## ## ## ## ## ## ## ## ## # 
 
 
 # DATA #
@@ -207,9 +236,9 @@ write.csv(nutedays, file = "nClass-daily-de-GENERALMODEL.csv", row.names=FALSE)
 
 
 
-#######################################
+## ## ## ## ## ## ## ## ## ## ## ## ### 
 ####  Herbaceous Forage Abundance  ####
-#######################################
+## ## ## ## ## ## ## ## ## ## ## ## ### 
 
 # DATA #
 
@@ -274,9 +303,9 @@ write.csv(habund, file = "avg-daily-gHerb.csv", row.names=FALSE)
 
 
 
-###################################
+## ## ## ## ## ## ## ## ## ## ## ##
 ####  Shrub  Forage Abundance  ####
-###################################
+## ## ## ## ## ## ## ## ## ## ## ##
 
 
 # DATA #
@@ -348,13 +377,10 @@ write.csv(abund, "avg-daily-g.csv", row.names = FALSE)
 
 
 
-###########################
+## ## ## ## ## ## ## ## ### 
 ####  Home Range Area  ####
-###########################
+## ## ## ## ## ## ## ## ### 
 
-# read in predicted de rasters (from Vegetation/de_model.R)
-de14 <- raster("../Vegetation/DE2014.tif")
-de15 <- raster("../Vegetation/DE2015.tif")
 
 # define projections
 latlong <- CRS("+init=epsg:4326")
@@ -403,9 +429,9 @@ write.csv(hr.a, file = "homerangeareas.csv", row.names = FALSE)
 
 
 
-##########################
+## ## ## ## ## ## ## ## ## 
 ####  Fecal Nitrogen  ####
-##########################
+## ## ## ## ## ## ## ## ## 
 
 pellets <- read.csv("FecalN-DefMigNonmig.csv")
 fecaln <- read.csv("fecalnitrogen-raw.csv")
@@ -420,9 +446,9 @@ write.csv(fn, file = "fecalnitrogen.csv", row.names = FALSE)
 
 
 
-#######################################
+## ## ## ## ## ## ## ## ## ## ## ## ### 
 ####  Irrigated Ag Access Per Day  ####
-#######################################
+## ## ## ## ## ## ## ## ## ## ## ## ### 
 
 
 # DATA #
@@ -494,14 +520,16 @@ lcsum <- lc %>%
 write.csv(lcsum, file = "agaccess-perelk-ndays.csv", row.names=F)
 
 
-###########################################################################
+## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## #
 
 
-###############################
-####  All Together Now...  ####
-###############################
+## ## ## ## ## ## ## ## ## ## 
+####  All data combined  ####
+## ## ## ## ## ## ## ## ## ##
+
 
 # data csvs from above
+# (skip this part if code run in full)
 bod <- read.csv("bodycondition.csv") 
 mig <- read.csv("migstatus.csv") 
 nute <- read.csv("avg-daily-de.csv") 
@@ -509,6 +537,7 @@ nutedays <- read.csv("nClass-daily-de.csv")
 abund <- read.csv("avg-daily-g.csv")
 hr <- read.csv("homerangeareas.csv")
 lcsum <- read.csv("agaccess-perelk-ndays.csv")
+
 
 # combine forage quality and quantity
 abund$Date <- as.Date(abund$Date)

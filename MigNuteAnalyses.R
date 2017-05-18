@@ -30,7 +30,7 @@ if (file.exists(wd_workcomp)) {setwd(wd_workcomp)
 rm(wd_workcomp, wd_laptop)
 
 
-# ORIGINAL DATA (from MigrationNutrition.R) #
+# ORIGINAL DATA (from MigNuteData.R) #
 
 # average DE exposure per indiv per day
 mignute.avg <- read.csv("mig-avgforage-GENERALMODEL.csv") %>%
@@ -884,11 +884,7 @@ summary(aadfq)
 
 # ok, going with no sig diff (/weak evidence for diff)
 ## between residents and intermediates avg daily exposure
-  # so intermediates are more likely on a given day to be exposed to adequate nutrition
-  # but they're less likely to be exposed to adequate nutrition for as many days total
-  # which makes it seem residents are killing it
-  # intermediates are fine but slightly worse
-  #and migrants seem to be making the best of a bad situation
+
   
 
 ###############################################################~#
