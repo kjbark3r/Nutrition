@@ -462,7 +462,7 @@ locs$IndivYr <- ifelse(locs$Date < "2015-01-01",
                        paste(locs$AnimalID, "-14", sep=""),
                        paste(locs$AnimalID, "-15", sep=""))  
 
-# predicted de rasters (from Vegetation/de_model.R)
+# predicted landcover rasters 
 lc14 <- raster("../Vegetation/writtenrasters/covs2014/landcov_14.tif")
 lc15 <- raster("../Vegetation/writtenrasters/covs2015/landcov_15.tif")
 

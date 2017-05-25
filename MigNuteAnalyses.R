@@ -489,6 +489,56 @@ ggplot(data = avgday.indiv) +
 ####  Actual presentation graphs  ####
 ######################################
 
+
+# DE per landcover type ####
+de <- read.csv("de-by-landcover-GENERALMODEL.csv")
+
+de <- de %>%
+  dplyr::rename(Landcover = class_name) %>%
+  transform(Landcover = ifelse(Landcover == "Irrigated Ag",
+                             "Irrigated Agricultural Land", 
+                             ifelse(Landcover == "Rx Dry Forest Burn 0-5",
+                                    "Dry Forest - recent prescribed burn",
+                             ifelse(Landcover == "Dry Forest Burn 0-5",
+                                    "Dry Forest - recent wildfire",
+                             ifelse(Landcover == "Dry Ag",
+                                    "Non-irrigated Agricultural Land",
+                             ifelse(Landcover == "Mesic Forest Burn 0-5",
+                                    "Wet Forest - recent wildfire",
+                             ifelse(Landcover == "Mesic Forest Burn 6-15",
+                                    "Wet Forest - mid-successional",
+                             ifelse(Landcover == "Dry Forest Burn 6-15",
+                                   "Dry Forest - mid-successional",
+                             ifelse(Landcover == "Mesic Forest (Burn >15)",
+                                    "Wet forest - late successional",
+                             ifelse(Landcover == "Dry Forest (Burn >15)",
+                                    "Dry Forest - late successional",
+                                    paste(Landcover))))))))))) 
+de$Landcover <- factor(de$Landcover,
+                        levels = de$Landcover[order(de$mean)],
+                        ordered = TRUE)
+horiz <- ggplot(data = de, 
+              aes(y = Landcover, x = mean,
+                  xmin = mean-2*sd,
+                  xmax = mean+2*sd)) +
+  geom_point(size = 3) +
+        geom_errorbarh() +
+  geom_vline(xintercept = 2.75) +
+  theme(text = element_text(size = 18)) +
+  labs(x = "Forage Quality (kcal/g)", y = "") 
+horiz
+
+horizmedian <- ggplot(data = de, 
+              aes(y = Landcover, x = median,
+                  xmin = median-2*se,
+                  xmax = median+2*se)) +
+  geom_point(size = 3) +
+        geom_errorbarh() +
+  geom_vline(xintercept = 2.75) +
+  theme(text = element_text(size = 18)) +
+  labs(x = "Forage Quality (kcal/g)", y = "") 
+horizmedian
+
 # timeplot DE by day - b&w ####
 avgday.date <- avgday %>%
   mutate(Date = as.Date(DOY, origin = "2014-01-01"))
@@ -865,9 +915,25 @@ summary(nadfq)
   nadt
   #migrants significantly diff from both
   #residents and intermediates sig diff too, but less so
- 
+
+
   
-## AVG DE EXPOSURE PER DAY ##
+# ndays exposure marginal fq
+nmrfq <- aov(nMarg ~ MigStatus, data = mignute.ndays)
+summary(nmrfq)
+#super significant
+#checking pairwise comparisons
+
+  # tukey hsd multiple comparison - ndays de
+  nmrt <- TukeyHSD(aov(nMarg ~ MigStatus, data = mignute.ndays))
+  nmrt
+  #migrants significantly diff from both
+  #residents and intermediates sig diff too, but less so 
+  
+
+  
+  
+  ## AVG DE EXPOSURE PER DAY ##
 
 # avg de exposure per day
 aadfq <- aov(AvgDayDE ~ MigStatus, data = avgday.indiv)
@@ -1060,48 +1126,10 @@ summary(migstatus$VI95)
 hist(migstatus$VI95)
 summary(migstatus$VI50)
 
+
+
 ##############################################~#
 ## DE per each landcover type ####
-
-# [see code below this part for general model version] #
-dedat <- read.csv("../Vegetation/DE-model-data.csv") %>%
-  dplyr::select(DE, landcov, class_name)
-sub1 <- filter(dedat, landcov == 1)
-sub2 <- filter(dedat, landcov == 2)
-sub3 <- filter(dedat, landcov == 3)
-sub4 <- filter(dedat, landcov == 4)
-sub5 <- filter(dedat, landcov == 5)
-sub6 <- filter(dedat, landcov == 6)
-sub7 <- filter(dedat, landcov == 7)
-sub8 <- filter(dedat, landcov == 8)
-sub9 <- filter(dedat, landcov == 9)
-sub10 <- filter(dedat, landcov == 10)
-sub11 <- filter(dedat, landcov == 11)
-sub12 <- filter(dedat, landcov == 12)
-par(mfrow=c(3,4))
-hist(sub1$DE, xlab = "Mesic Forest (Burn >15)")
-hist(sub2$DE, xlab = "Dry Forest (Burn >15)")
-hist(sub3$DE, xlab = "Grass/Shrub/Open Woodland")
-hist(sub4$DE, xlab = "Dry Ag")
-hist(sub5$DE, xlab = "Valley Bottom Riparian")
-hist(sub6$DE, xlab = "Montane Riparian")
-hist(sub7$DE, xlab = "Irrigated Ag")
-hist(sub8$DE, xlab = "Dry Forest (Burn 0-5)")
-hist(sub9$DE, xlab = "Dry Forest (Burn 6-15)")
-hist(sub10$DE, xlab = "Mesic Forest (Burn 0-5)")
-hist(sub11$DE, xlab = "Mesic Forest (Burn 6-15)")
-hist(sub12$DE, xlab = "Rx Dry Forest (Burn 0-5)")
-
-lctab <- ddply(dedat, "class_name", summarise,
-                N = length(DE),
-                mean = mean(DE),
-               median = median(DE),
-                sd = sd(DE),
-                se = sd/sqrt(N))
-arrange(lctab, desc(median))
-write.csv(lctab, "de-by-landcover.csv", row.names=F)
-
-
 
 ## general model (not nsapph-specific) ##
 
@@ -1121,7 +1149,7 @@ smr14 <- plotdat %>%
 xy14 <- data.frame("x" = smr14$Long, "y" = smr14$Lat) # pull coords
 spdf.ll14 <- SpatialPointsDataFrame(xy14, smr14, proj4string = latlong) #spatial
 spdf14 <- spTransform(spdf.ll14, dedat14@crs) # match projection of de tifs
-ext14 <- as.data.frame(extract(dedat14, spdf14)) #landcover for each location
+ext14 <- as.data.frame(raster::extract(dedat14, spdf14)) #landcover for each location
 colnames(ext14) <- "DE"
 ext14 <- cbind(smr14, ext14) #combine locations with extracted de data
 # extract 2015 predicted DE values
@@ -1130,11 +1158,25 @@ smr15 <- plotdat %>%
 xy15 <- data.frame("x" = smr15$Long, "y" = smr15$Lat) # pull coords
 spdf.ll15 <- SpatialPointsDataFrame(xy15, smr15, proj4string = latlong) #spatial
 spdf15 <- spTransform(spdf.ll15, dedat15@crs) # match projection of de tifs
-ext15 <- as.data.frame(extract(dedat15, spdf15)) #landcover for each location
+ext15 <- as.data.frame(raster::extract(dedat15, spdf15)) #landcover for each location
 colnames(ext15) <- "DE"
 ext15 <- cbind(smr15, ext15) #combine locations with extracted de data
 # combine 2014 and 2015
 newde <- rbind(ext14, ext15)
+
+# look at distributions (determine most appropriate center/spread measure)
+facet_grid()
+
+lctab <- ddply(newde, "class_name", summarise,
+                N = length(DE),
+                mean = mean(DE),
+               median = median(DE),
+                sd = sd(DE),
+                se = sd/sqrt(N))
+arrange(lctab, desc(median))
+write.csv(lctab, "de-by-landcover-GENERALMODEL.csv", row.names=F)
+
+# pathetic/hacky visuals of distributions
 sub1 <- filter(newde, landcov == 1)
 sub2 <- filter(newde, landcov == 2)
 sub3 <- filter(newde, landcov == 3)
@@ -1160,16 +1202,6 @@ hist(sub9$DE, xlab = "Dry Forest (Burn 6-15)")
 hist(sub10$DE, xlab = "Mesic Forest (Burn 0-5)")
 hist(sub11$DE, xlab = "Mesic Forest (Burn 6-15)")
 hist(sub12$DE, xlab = "Rx Dry Forest (Burn 0-5)")
-
-lctab <- ddply(newde, "class_name", summarise,
-                N = length(DE),
-                mean = mean(DE),
-               median = median(DE),
-                sd = sd(DE),
-                se = sd/sqrt(N))
-arrange(lctab, desc(median))
-write.csv(lctab, "de-by-landcover-GENERALMODEL.csv", row.names=F)
-
 
 #####################################~#
 ## sig diffs bt de per landcover type ####
