@@ -738,7 +738,8 @@ fqmig <- ggplot(avgday.indiv,
                 aes(x = MigRank, y = AvgDayDE)) +
   labs(x = "Resident                                                   Migrant", 
        y = "Forage Quality (kcal/g)") +
-  geom_smooth(color = "black")+
+  geom_smooth(color = "black") +
+  geom_point() +
   geom_hline(yintercept=2.75) +
   theme(text = element_text(size=20),
         axis.text.x=element_blank()) 
