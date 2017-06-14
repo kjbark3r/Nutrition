@@ -381,11 +381,12 @@ lac <- ifbf.lac %>%
 
 
 
-
-
-
-
-
+#### just checking out mig frequency plots ####
+m <- read.csv("migstatus.csv")
+colnames(m)
+par(mfrow=c(2,2))
+hist(m$VI95); hist(m$VI50); hist(m$Dist); hist(m$MigRank)
+sd(m$VI95)/mean(m$VI95)
 
 ########################################################################
 ########################################################################
