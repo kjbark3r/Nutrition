@@ -115,38 +115,38 @@ dists <- read.csv("../Migration/HRoverlap/distbtcentroids.csv")
 
 # tweak and clean; remove ski hill elk
 mig <- vi95 %>%
+  rename(VI95 = SprVI) %>%
   dplyr::select(-c(AnimalID, Sex)) %>% 
   left_join(vi50, by = "IndivYr") %>%
+  rename(VI50 = SprVI) %>%
   dplyr::select(IndivYr, AnimalID, VI95, VI50) %>%
   left_join(caploc, by = "AnimalID") %>%
   filter(Location != "Ski Hill") %>% # remove Ski Hill elk (n=6)
-  left_join(dists, by = "IndivYr") %>%
+  left_join(dists) %>%
   dplyr::select(-Location)
   
 
-# CLASSIFICATION - discrete behavioral classes #
+# CLASSIFICATION #
+
+## rank strength of mig behavior, and discretize behavior
+## using volume intersection of winter/summer KDEs
   # resident is any indiv whose CORES (50% UD) overlap between seasons
   # migrant is any indiv whose HRs (95% UD) never overlap
   # intermediate is everyone else
-migclass <- mig %>%
-  mutate(MigStatus = ifelse(VI50 > 0, "Resident",
+  # rank is sorted first by 95% VI, then by 50% VI
+    # migrants are ranked by increasing distance bt seasonal hr centroids
+
+mig <- mig %>%
+  arrange(desc(VI95)) %>%
+  arrange(desc(VI50)) %>%
+#  arrange(Dist) %>%
+  mutate(MigRank = row_number(),
+         MigStatus = ifelse(VI50 > 0, "Resident",
                      ifelse(VI95 == 0, "Migrant",
                             "Intermediate"))) 
+  
 
-# CLASSIFICATION - behavioral continuum #
-  # rank is sorted first by 50% VI, then by 95% VI
-  # migrants are ranked by increasing distance bt seasonal hr centroids
-m <- migclass  %>%
-  filter(MigStatus == "Migrant") %>%
-  arrange(Dist)
-migstat <- migclass %>%
-  filter(MigStatus != "Migrant") %>%
-  arrange(desc(VI95)) %>%
-  arrange(desc(VI50)) %>% 
-  bind_rows(m) %>%
-  mutate(MigRank = row_number())
-
-write.csv(migstat, file = "migstatus.csv", row.names=FALSE)
+write.csv(mig, file = "migstatus.csv", row.names=FALSE)
 
 
 
@@ -167,6 +167,11 @@ locs$IndivYr <- ifelse(locs$Date < "2015-01-01",
                        paste(locs$AnimalID, "-15", sep=""))  
 
 # predicted de rasters 
+  #commented out rasters from NSERP-specific model, 
+  #from GitHub/Vegetation/de_model.R
+  #rasters now being used are from general Bitterroot Valley DE model
+#de14 <- raster("../Vegetation/DE2014.tif")
+#de15 <- raster("../Vegetation/DE2015.tif")
 de14 <- raster("pred_DE_SUMR_2014.tif")
 de15 <- raster("pred_DE_SUMR_2015.tif")
 
@@ -376,7 +381,6 @@ write.csv(abund, "avg-daily-g.csv", row.names = FALSE)
 ####  Home Range Area  ####
 ## ## ## ## ## ## ## ## ### 
 
-migstatus <- read.csv("migstatus.csv")
 
 # define projections
 latlong <- CRS("+init=epsg:4326")
@@ -387,8 +391,8 @@ locs <- read.csv("../ElkDatabase/collardata-locsonly-equalsampling.csv") %>%
   dplyr::select(c(AnimalID, Date, Time, Lat, Long, Sex)) %>%
   within(Date <- as.Date(Date, format = "%Y-%m-%d")) %>% #format date
   filter(Sex == "Female") %>% #not using males for nutrition analysis
-  subset(between(Date, as.Date("2014-07-15"), as.Date("2014-08-31")) | #summer
-         between(Date, as.Date("2015-07-15"), as.Date("2015-08-31"))) %>% 
+  subset(between(Date, as.Date("2014-07-01"), as.Date("2014-08-31")) | #summer
+         between(Date, as.Date("2015-07-01"), as.Date("2015-08-31"))) %>% 
   mutate(IndivYr = ifelse(Date < "2015-01-01", 	 # add indiv id (elk-year)
 						   paste(AnimalID, "-14", sep=""),
 						   paste(AnimalID, "-15", sep="")))
@@ -471,7 +475,7 @@ latlong <- CRS("+init=epsg:4326") # WGS84
 # 2014
 smr14 <- locs %>%
   filter(Sex == "Female")  %>% # not using males for nutrition analysis
-  subset(between(Date, as.Date("2014-07-15"), as.Date("2014-08-31"))) 
+  subset(between(Date, as.Date("2014-07-14"), as.Date("2014-08-31"))) 
 xy14 <- data.frame("x" = smr14$Long, "y" = smr14$Lat) # pull coords
 spdf.ll14 <- SpatialPointsDataFrame(xy14, smr14, proj4string = latlong) #spatial
 spdf14 <- spTransform(spdf.ll14, lc14@crs) # match projection of de tifs

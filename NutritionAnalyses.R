@@ -14,15 +14,15 @@
 
 #### packages ####
 
+library(plyr)
+library(dplyr)
+library(tidyr)
 library(ggplot2) # graphics
 library(reshape2)
 library(gridExtra) # >1 plot per display
 library(pscl)
 library(lme4)
-library(raster)
-library(plyr)
-library(dplyr)
-library(tidyr)
+
 
 #### working directory ####
 
@@ -35,7 +35,7 @@ rm(wd_workcomp, wd_laptop)
 
 
 
-#### original data (from MigNuteData.R and Vegetation repo) ####
+#### original data (from MigNuteData.R) ####
 
 
 # average DE exposure per indiv per day
@@ -70,18 +70,10 @@ fn <- read.csv("fecalnitrogen.csv") %>%
   within(Date <- as.POSIXlt(Date, format = "%m/%d/%Y"))
 fn$DOY <- fn$Date$yday
 
-# bitterroot valley DE model
-de14 <- raster("pred_DE_SUMR_2014.tif")
-de15 <- raster("pred_DE_SUMR_2015.tif")
-
-# nsapph landcover types
-lc14 <- raster("../Vegetation/writtenrasters/cropped/landcov_14.tif")
-lc15 <- raster("../Vegetation/writtenrasters/cropped/landcov_15.tif")
 
 
 
-
-# new dataframes from original data ####
+# new dataframes from original data #
 
 
 # PER MIG STATUS average forage values per day
@@ -160,118 +152,24 @@ ppn <- mignute.avg %>%
   ungroup()
 
 
-# matching extent of DE and landcover rasters (res already same)
-# using smallest value from both rasters
-extent(de14) <- c(197541.9, 284211.9, 143428.1, 302308.1)
-extent(lc14) <- extent(de14)
-plot(lc14)
-
 
 ### ### ### ### ###
 ####  |STATS|  ####
 ### ### ### ### ###
 
 
-
 ### ### ### ### ### ### ### ### ### 
-## SAMPLE SIZES, SUMMARIES, ETC ####
+## sample sizes, summaries, etc ####
 
-
-#### elk sample size per year ####
+# elk sample size per year
 nmig <- migstatus %>%
       mutate(Year = ifelse(grepl("-14", IndivYr), 2014, 2015))
 count(nmig, Year == 2014)
-nrow(nmig) # total number of elk-years
 
-
-#### number and ppn res, int, mig ####
-  # total #
+# number res, int, mig
 table(migstatus$MigStatus) 
-length(which(migstatus$MigStatus == "Resident"))/nrow(migstatus)
-length(which(migstatus$MigStatus == "Intermediate"))/nrow(migstatus)
-length(which(migstatus$MigStatus == "Migrant"))/nrow(migstatus)
-  # yearly #
-table(nmig$MigStatus, nmig$Year)
-10/38 # res&mig, 2014
-18/38 # int, 2014
-8/37 # res 2015
-19/37 # int 2015
-10/37 # mig 2015
 
-
-#### avg summer HR area ####
-any(is.na(mignute.ndays$HRarea))
-sumtab.hr <- ddply(mignute.ndays, "MigStatus", summarise,
-                N = length(HRarea),
-                mean = mean(HRarea),
-                sd = sd(HRarea),
-                se = sd/sqrt(N))
-sumtab.hr
-
-
-#### home range volume intersections #### 
-summary(migstatus$VI95)
-summary(migstatus$VI50)
-
-
-
-
-#### KRISTIN YOU LEFT OFF HERE -- rerunning foragequality_DE_bitterroot ####
-## need SBroot data from Jesse to finish running that code ##
-
-
-#### avg DE per plant life form #### 
-de.dat <- read.csv("../Vegetation/DE-bylifeform.csv")
-# make it longform
-de <- de.dat %>%
-  gather(key = "Stage", value = "DE", 
-         DEemerg, DEflwr, DEfrt, DEcure) %>%
-  rename(LifeForm = Class)
-# make phenophase stage names correct
-de$Stage <- ifelse(de$Stage == "DEemerg", "Emergent", 
-                   ifelse(de$Stage == "DEflwr", "Flowering",
-                          ifelse(de$Stage == "DEfrt", "Fruiting",
-                                 "Cured"))) # make names pretty
-# order stages in temporal order of phenophase
-de$Stage <- factor(de$Stage, 
-                   levels = c("Emergent", "Flowering",
-                               "Fruiting", "Cured"),
-                            ordered = TRUE) 
-#capitalize lifeform names
-de$LifeForm <- paste(toupper(substring(de$LifeForm, 1, 1)), 
-                     substring(de$LifeForm, 2), sep = "") #capitalize
-# order lifeforms in decreasing order of DE
-de$LifeForm <- factor(de$LifeForm, 
-                   levels = c("Graminoid", "Forb", "Shrub"),
-                            ordered = TRUE) 
-
-
-
-
-# avg DE across plots
-dedat <- read.csv("../Vegetation/sapp_DE_data.csv") %>%
-  filter(Area == "Nsapph" & Season == "Summer") %>%
-  dplyr::select(DE, landcov, class_name)
-lctab <- ddply(dedat, "class_name", summarise,
-                N = length(DE),
-                mean = mean(DE),
-               median = median(DE),
-                sd = sd(DE),
-                se = sd/sqrt(N))
-arrange(lctab, desc(median))
-write.csv(lctab, "de-by-landcover_NsapphSummer.csv", row.names=F)
-
-
-
-# avg predicted DE per landcover type ####
-
-#### ####
-
-
-
-
-
-# avg DE per day per migstatus
+# summary stats, avg DE per day per migstatus
 any(is.na(mignute.avg$AvgDE))
 mignute.avg.t <- dplyr::select(mignute.avg, -Date)
 sumtab <- ddply(mignute.avg.t, "MigStatus", summarise,
@@ -281,7 +179,8 @@ sumtab <- ddply(mignute.avg.t, "MigStatus", summarise,
                 se = sd/sqrt(N))
 sumtab
 
-# ndays adequate per migstatus
+# summary stats, ndays adequate per migstatus
+# also checking median bc data skewed
 any(is.na(mignute.ndays$nAdequate))
 sumtab.n <- ddply(mignute.ndays, "MigStatus", summarise,
                 N = length(nAdequate),
@@ -290,26 +189,6 @@ sumtab.n <- ddply(mignute.ndays, "MigStatus", summarise,
                 sd = sd(nAdequate),
                 se = sd/sqrt(N))
 sumtab.n
-
-# ndays marginal per migstatus
-any(is.na(mignute.ndays$nMarg))
-sumtab.m <- ddply(mignute.ndays, "MigStatus", summarise,
-                N = length(nMarg),
-                mean = mean(nMarg),
-                median = median(nMarg),
-                sd = sd(nMarg),
-                se = sd/sqrt(N))
-sumtab.m
-
-# ndays poor per migstatus
-any(is.na(mignute.ndays$nPoor))
-sumtab.p <- ddply(mignute.ndays, "MigStatus", summarise,
-                N = length(nPoor),
-                mean = mean(nPoor),
-                median = median(nPoor),
-                sd = sd(nPoor),
-                se = sd/sqrt(N))
-sumtab.p
 
 # summary stats, ndays irrig ag per migstatus
 # also checking median bc data skewed
@@ -326,57 +205,92 @@ sumtab.ag
 # ndays in summer
 max(avgday$DOY) - min(avgday$DOY)
 
+# summary stats, avg summer HR area
+any(is.na(mignute.ndays$HRarea))
+sumtab.hr <- ddply(mignute.ndays, "MigStatus", summarise,
+                N = length(HRarea),
+                mean = mean(HRarea),
+                sd = sd(HRarea),
+                se = sd/sqrt(N))
+sumtab.hr
 
 
 
-
-### ### ### ### ### ### ### # 
-#### TESTS & COMPARISONS ####
-
+### ### ### ### ### ### ### ### ### #### ### ### 
+## diffs in FQ exposure per migratory status ####
 
 
-#### diffs in FQ exposure per migratory status ####
+## NDAYS EXPOSURE ##
 
+# ndays exposure adequate fq
+nadfq <- aov(nAdequate ~ MigStatus, data = mignute.ndays)
+summary(nadfq)
+#super significant
+#checking pairwise comparisons
 
+  # tukey hsd multiple comparison - ndays de
+  nadt <- TukeyHSD(aov(nAdequate ~ MigStatus, data = mignute.ndays))
+  nadt
+  #migrants significantly diff from both
+  #residents and intermediates sig diff too, but less so
+ 
+  
 ## AVG DE EXPOSURE PER DAY ##
 
 # avg de exposure per day
 aadfq <- aov(AvgDayDE ~ MigStatus, data = avgday.indiv)
 summary(aadfq)
-#very significant
+#super significant
+#checking pairwise comparisons
 
   # tukey hsd multiple comparison - avgde
   aadt <- TukeyHSD(aov(AvgDayDE ~ MigStatus, data = avgday.indiv))
   aadt
   #says residents and intermediates not significantly diff (barely)
   #migrants significantly diff from both
+
   
 
+### ### ### ### ### ### ### ### ### #### ### ### ### ### ### ### #
+## diffs in ndays exposure to ea nute category per mig status ####
+
+## EXCELLENT ##
+
+# avg de exposure per day
+edfq <- aov(nExc ~ MigStatus, data = mignute.ndays)
+summary(edfq)
+# significant
+
+# tukey hsd multiple comparison 
+edfqt <- TukeyHSD(aov(nExc ~ MigStatus, data = mignute.ndays))
+edfqt  
+# mig sig less than res & int. Res/int no diff
 
 
-## NDAYS EXPOSURE ##
+## GOOD ##
 
-# adequate fq
-nadfq <- aov(nAdequate ~ MigStatus, data = mignute.ndays)
-summary(nadfq)
-#very significant
+# avg de exposure per day
+gdfq <- aov(nGood ~ MigStatus, data = mignute.ndays)
+summary(gdfq)
+# significant, but only 0.02
 
-  # tukey hsd multiple comparison - ndays de
-  nadt <- TukeyHSD(aov(nAdequate ~ MigStatus, data = mignute.ndays))
-  nadt
-  #migrants significantly diff from both
-  #residents and intermediates on the cusp
+# tukey hsd multiple comparison 
+gdfqt <- TukeyHSD(aov(nGood ~ MigStatus, data = mignute.ndays))
+gdfqt  
+# only sig diff is bt migrants and residents
 
 
-# marginal fq
+## MARGINAL ##
+
+# avg de exposure per day
 mdfq <- aov(nMarg ~ MigStatus, data = mignute.ndays)
 summary(mdfq)
-# significant
+#super significant
 
 # tukey hsd multiple comparison 
 mdfqt <- TukeyHSD(aov(nMarg ~ MigStatus, data = mignute.ndays))
 mdfqt   
-
+# sig diffs mig-res and mig-int. p=0.0508 for int-res
 
 
 ## POOR ##
@@ -392,6 +306,14 @@ pdfqt
 # sig diffs mig-res and mig-int. p=0.0508 for int-res
 
 
+
+### ### ### ### ### ### ### ### ### #### ##
+## summarizing ppns r/i/m across years ####
+allppns <- migstatus %>%
+  summarize(ppnRes = length(which(MigStatus == "Resident"))/n(),
+            ppnInt = length(which(MigStatus == "Intermediate"))/n(),
+            ppnMig = length(which(MigStatus == "Migrant"))/n()) %>%
+  ungroup()
 
 
 
