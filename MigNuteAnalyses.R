@@ -25,9 +25,15 @@ library(lme4)
 
 wd_workcomp <- "C:\\Users\\kristin.barker\\Documents\\GitHub\\Nutrition"
 wd_laptop <- "C:\\Users\\kjbark3r\\Documents\\GitHub\\Nutrition"
+wd_worklaptop <- "C:\\Users\\kristin\\Documents\\Nutrition"
 if (file.exists(wd_workcomp)) {setwd(wd_workcomp)
-} else {setwd(wd_laptop)}
-rm(wd_workcomp, wd_laptop)
+} else {
+  if(file.exists(wd_laptop)) {setwd(wd_laptop)
+  } else {
+	setwd(wd_worklaptop)
+      }
+    }
+rm(wd_workcomp, wd_laptop, wd_worklaptop)
 
 
 # ORIGINAL DATA (from MigNuteData.R) #

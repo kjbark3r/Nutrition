@@ -2,9 +2,8 @@
 # NUTRITIONAL CONSEQUENCES OF VARYING MIGRATORY BEHAVIORS #
 #           -DATA ANALYSES AND VISUALIZATIONS-            #
 #                NSERP - KRISTIN BARKER                   #
-#                  NOV 2016 - JAN 2017                    #
+#                   UPDATED JUNE 2017                     #
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
-
 
 
 ### ### ### ### ###
@@ -12,19 +11,27 @@
 ### ### ### ### ###
 
 
+
+
 #### packages ####
 
-library(ggplot2) # graphics
+library(RODBC)
 library(reshape2)
 library(gridExtra) # >1 plot per display
 library(pscl)
 library(lme4)
+library(MASS) # for negbin model
 library(raster)
+library(ggplot2) # graphics
 library(plyr)
 library(dplyr)
 library(tidyr)
 
-#### working directory ####
+
+
+
+
+#### working directories and database connection ####
 
 wd_workcomp <- "C:\\Users\\kristin.barker\\Documents\\GitHub\\Nutrition"
 wd_laptop <- "C:\\Users\\kjbark3r\\Documents\\GitHub\\Nutrition"
@@ -36,6 +43,10 @@ if (file.exists(wd_workcomp)) {setwd(wd_workcomp)
 	setwd(wd_worklaptop)
       }
     }
+if(file.exists(wd_worklaptop)) {
+  channel <- odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};
+                               dbq=C:/Users/kristin/Documents/DatabasesEtc/ForagePlantDatabase.accdb")
+} else {  cat("Maybe you shouldn't have been so lazy when you made this code") }
 rm(wd_workcomp, wd_laptop, wd_worklaptop)
 
 
@@ -52,7 +63,8 @@ mignute.avg <- read.csv("mig-avgforage-GENERALMODEL.csv") %>%
                                    "Intermediate",
                                    "Migrant"),
                             ordered = TRUE)) 
-mignute.avg$DOY <- mignute.avg$Date$yday #day of year
+mignute.avg$DOY <- mignute.avg$Date$yday #add day of year
+
 
 # number days exposure to each nutrition category per indiv
 mignute.ndays <- read.csv("mig-ndaysDE-GENERALMODEL.csv") %>%
@@ -64,30 +76,47 @@ mignute.ndays <- read.csv("mig-ndaysDE-GENERALMODEL.csv") %>%
   mutate(nAdequate = nExc+nGood) %>%
   mutate(nInadequate = nMarg+nPoor)
 
-# to join with new df's created later
+
+# continuous and categorical classifications of migratory behavior
 migstatus <- read.csv("migstatus.csv")
 
-# fecal nitrogen
-fn <- read.csv("fecalnitrogen.csv") %>%
-  within(MigStatus <- ifelse(MigStatus == "Resident", "Non-Migrant",
-                             "Migrant")) %>%
-  transform(MigStatus = factor(MigStatus, levels = c("Non-Migrant",
-                         "Migrant"), ordered = TRUE)) %>%
-  within(Date <- as.POSIXlt(Date, format = "%m/%d/%Y"))
-fn$DOY <- fn$Date$yday
+
+# DE values from sampled forage plants
+de <- sqlQuery(channel, paste("select StudyArea, PlantCode, NameGenus, Stage, Class, DE
+                                from Data_DMD where NOT (StudyArea = 'ELKHORNS')"))
 
 # bitterroot valley DE model
 de14 <- raster("pred_DE_SUMR_2014.tif")
 de15 <- raster("pred_DE_SUMR_2015.tif")
 
+
+# de per plot
+fq.plot <- read.csv("../Vegetation/ALL_DE_data.csv") %>%
+  filter(Area == "Nsapph") %>%
+  within(Date <- as.Date(Date, format = "%m/%d/%Y"))
+
+
 # nsapph landcover types
-lc14 <- raster("../Vegetation/writtenrasters/cropped/landcov_14.tif")
-lc15 <- raster("../Vegetation/writtenrasters/cropped/landcov_15.tif")
+lc14 <- raster("../Vegetation/writtenrasters/uncropped/landcov_14.tif")
+lc15 <- raster("../Vegetation/writtenrasters/uncropped/landcov_15.tif")
+lcstk <- stack(lc14, lc15)
+
+
+# landcover definitions
+lc.raw <- read.csv("../Vegetation/landcov-classes.csv") 
+
+# projection definition
+latlong <- CRS("+init=epsg:4326") # WGS84
+
+# matching extent of DE and landcover rasters using smallest value from both rasters
+extent(de14) <- c(197541.9, 284211.9, 143428.1, 302308.1)
+extent(lc14) <- extent(de14)
+extent(lc15) <- extent(de14)
 
 
 
 
-# new dataframes from original data ####
+#### new dataframes from original data ####
 
 
 # PER MIG STATUS average forage values per day
@@ -166,21 +195,35 @@ ppn <- mignute.avg %>%
   ungroup()
 
 
-# matching extent of DE and landcover rasters (res already same)
-# using smallest value from both rasters
-extent(de14) <- c(197541.9, 284211.9, 143428.1, 302308.1)
-extent(lc14) <- extent(de14)
-plot(lc14)
+
+# DE per landcover type
+
+# combine valley bottom and montane riparian (lots of valley classified as montane)
+lc <- lc.raw
+lc$class_name <- as.factor(ifelse(grepl("Riparian", lc$class_name), "Riparian", 
+                                  as.character(lc$class_name)))
 
 
-### ### ### ### ###
-####  |STATS|  ####
-### ### ### ### ###
+# make plot data spatial, match raster projection, extract landcover
+xy.plot <- data.frame("x" = fq.plot$Longitude, "y" = fq.plot$Latitude)
+sp.ll.plot <- SpatialPointsDataFrame(xy.plot, fq.plot, proj4string = latlong)
+sp.plot <- spTransform(sp.ll.plot, lc14@crs)
+ext <- as.data.frame(raster::extract(lcstk, sp.plot))
+
+# select correct year per plot
+de.plot <- cbind(fq.plot, ext) %>%
+  mutate(Landcov = ifelse(Date < "2015-01-01", landcov_14, landcov_15)) %>%
+  select(PlotID, Date, Longitude, Latitude, DE, Landcov) %>%
+  left_join(lc, by = c("Landcov" = "landcov")) %>%
+  rename(LcNum = Landcov, Landcover = class_name) 
+write.csv(de.plot, file = "de-per-plot.csv", row.names=F)
 
 
 
-### ### ### ### ### ### ### ### ### 
-## SAMPLE SIZES, SUMMARIES, ETC ####
+
+### ### ### ### #### ### ### ### ### #
+## |SAMPLE SIZES, SUMMARIES, ETC| ####
+### ### ### ### ###### ### ### ### ###
 
 
 #### elk sample size per year ####
@@ -220,64 +263,42 @@ summary(migstatus$VI95)
 summary(migstatus$VI50)
 
 
+#### distance bt centroids ####
+summary(migstatus$Dist)
+sd(migstatus$Dist)
+summary(migstatus$Dist[migstatus$MigStatus == "Migrant"])
+sd(migstatus$Dist[migstatus$MigStatus == "Migrant"])
+summary(migstatus$Dist[migstatus$MigStatus == "Intermediate"])
+sd(migstatus$Dist[migstatus$MigStatus == "Intermediate"])
+summary(migstatus$Dist[migstatus$MigStatus == "Resident"])
+sd(migstatus$Dist[migstatus$MigStatus == "Resident"])
 
 
-#### KRISTIN YOU LEFT OFF HERE -- rerunning foragequality_DE_bitterroot ####
-## need SBroot data from Jesse to finish running that code ##
+#### de per lifeform ####
+
+de.lf <- de %>%
+  group_by(Class) %>%
+  summarise(StDev = sd(DE, na.rm=TRUE), DE = mean(DE, na.rm=TRUE)) %>%
+  ungroup()
+write.csv(de.lf, "../Vegetation/de-by-lifeform-GENERALMODEL.csv")
 
 
-#### avg DE per plant life form #### 
-de.dat <- read.csv("../Vegetation/DE-bylifeform.csv")
-# make it longform
-de <- de.dat %>%
-  gather(key = "Stage", value = "DE", 
-         DEemerg, DEflwr, DEfrt, DEcure) %>%
-  rename(LifeForm = Class)
-# make phenophase stage names correct
-de$Stage <- ifelse(de$Stage == "DEemerg", "Emergent", 
-                   ifelse(de$Stage == "DEflwr", "Flowering",
-                          ifelse(de$Stage == "DEfrt", "Fruiting",
-                                 "Cured"))) # make names pretty
-# order stages in temporal order of phenophase
-de$Stage <- factor(de$Stage, 
-                   levels = c("Emergent", "Flowering",
-                               "Fruiting", "Cured"),
-                            ordered = TRUE) 
-#capitalize lifeform names
-de$LifeForm <- paste(toupper(substring(de$LifeForm, 1, 1)), 
-                     substring(de$LifeForm, 2), sep = "") #capitalize
-# order lifeforms in decreasing order of DE
-de$LifeForm <- factor(de$LifeForm, 
-                   levels = c("Graminoid", "Forb", "Shrub"),
-                            ordered = TRUE) 
+#### avg de in measured plots ####
+de.ns <- de %>%
+  filter(StudyArea == "NS") %>%
+  summarise(StDev = sd(DE), Mean = mean(DE))
 
 
+#### de per landcover type ####
+de.lc <- de.plot %>%
+  group_by(Landcover) %>%
+  summarise(MeanDE = mean(DE, na.rm=TRUE),
+            StDev = sd(DE, na.rm=TRUE)) %>%
+  ungroup()
+write.csv(de.lc, "../Vegetation/de-landcov-NSapph-GENERALMODEL.csv", row.names=F)
 
 
-# avg DE across plots
-dedat <- read.csv("../Vegetation/sapp_DE_data.csv") %>%
-  filter(Area == "Nsapph" & Season == "Summer") %>%
-  dplyr::select(DE, landcov, class_name)
-lctab <- ddply(dedat, "class_name", summarise,
-                N = length(DE),
-                mean = mean(DE),
-               median = median(DE),
-                sd = sd(DE),
-                se = sd/sqrt(N))
-arrange(lctab, desc(median))
-write.csv(lctab, "de-by-landcover_NsapphSummer.csv", row.names=F)
-
-
-
-# avg predicted DE per landcover type ####
-
-#### ####
-
-
-
-
-
-# avg DE per day per migstatus
+#### de per migstatus ####
 any(is.na(mignute.avg$AvgDE))
 mignute.avg.t <- dplyr::select(mignute.avg, -Date)
 sumtab <- ddply(mignute.avg.t, "MigStatus", summarise,
@@ -285,38 +306,153 @@ sumtab <- ddply(mignute.avg.t, "MigStatus", summarise,
                 mean = mean(AvgDE),
                 sd = sd(AvgDE),
                 se = sd/sqrt(N))
-sumtab
+write.csv(sumtab, "de-per-migstatus.csv", row.names=F)
 
-# ndays adequate per migstatus
-any(is.na(mignute.ndays$nAdequate))
-sumtab.n <- ddply(mignute.ndays, "MigStatus", summarise,
-                N = length(nAdequate),
-                mean = mean(nAdequate),
-                median = median(nAdequate),
-                sd = sd(nAdequate),
-                se = sd/sqrt(N))
-sumtab.n
 
-# ndays marginal per migstatus
-any(is.na(mignute.ndays$nMarg))
-sumtab.m <- ddply(mignute.ndays, "MigStatus", summarise,
-                N = length(nMarg),
-                mean = mean(nMarg),
-                median = median(nMarg),
-                sd = sd(nMarg),
-                se = sd/sqrt(N))
-sumtab.m
 
-# ndays poor per migstatus
-any(is.na(mignute.ndays$nPoor))
-sumtab.p <- ddply(mignute.ndays, "MigStatus", summarise,
-                N = length(nPoor),
-                mean = mean(nPoor),
-                median = median(nPoor),
-                sd = sd(nPoor),
-                se = sd/sqrt(N))
-sumtab.p
 
+
+### ### ### ### ### ### ### #
+####  |STATS & MODELS|  ####
+### ### ### ### ### ### ### #
+
+
+
+#### de per landcover type ####
+
+  # set irrigated ag as reference level
+  str(de.plot)  # sanity check - make sure factor is unordered
+  de.plot$Landcover <- relevel(de.plot$Landcover, "Irrigated Ag")
+
+  # model de per landcover type
+  lcmod <- glm(DE ~ Landcover, data = de.plot)
+  summary(lcmod)
+  
+
+#### avg daily de per migstatus ####
+
+  # set resident as reference level AND MAKE FACTOR UNORDERED
+  avgday.indiv2 <- avgday.indiv %>%
+    transform(MigStatus = factor(MigStatus, ordered=F)) 
+  avgday.indiv2$MigStatus <- relevel(avgday.indiv2$MigStatus, "Resident")
+  demod <- glm(AvgDayDE ~ MigStatus, data = avgday.indiv2)
+  summary(demod)  
+  par(mfrow=c(2,2)); plot(demod)
+
+  # set intermediate as reference level 
+  avgday.indiv3 <- avgday.indiv %>%
+    transform(MigStatus = factor(MigStatus, ordered=F)) %>%
+    transform(MigStatus = relevel(MigStatus, "Intermediate"))
+  demod2 <- glm(AvgDayDE ~ MigStatus, data = avgday.indiv3)
+  summary(demod2) 
+
+
+  
+ #### number of days access per migstatus ####
+  
+  # dataframe with resident as reference level
+  ndays <- mignute.ndays %>%
+    within(MigStatus <- factor(MigStatus, ordered = FALSE)) %>%
+    transform(MigStatus = relevel(MigStatus, "Resident"))
+
+  # dataframe with intermediate as reference level
+  ndays2 <- mignute.ndays %>%
+    within(MigStatus <- factor(MigStatus, ordered = FALSE)) %>%
+    transform(MigStatus = relevel(MigStatus, "Intermediate"))
+  
+  # dataframe with migrant as reference level
+  ndays3 <- mignute.ndays %>%
+    within(MigStatus <- factor(MigStatus, ordered = FALSE)) %>%
+    transform(MigStatus = relevel(MigStatus, "Migrant"))
+  
+  
+  ## ADEQUATE FQ ##
+  
+    # determine whether to use poisson or negbin model #
+    admod.p <- glm(nAdequate ~ MigStatus, data = ndays, family = poisson(link = log))
+    admod.nb <- glm.nb(nAdequate ~ MigStatus, data = ndays)
+    pchisq(2 * (logLik(admod.nb) - logLik(admod.p)), df = 1, lower.tail = FALSE)
+        # strong significance suggests negbin more appropriate
+    summary(admod.nb)
+    
+    # check whether migstatus is a significant predictor of ndays access
+    admod.nbnull <- update(admod.nb, . ~ . - MigStatus)
+    anova(admod.nbnull, admod.nb)
+      # chi-square indicates migstatus is statistically significant predictor
+    
+    # now with intermediates as reference level
+    admod.nb2 <- glm.nb(nAdequate ~ MigStatus, data = ndays2)
+    summary(admod.nb2)
+    
+    # and migrants as reference level
+    admod.nb3 <- glm.nb(nAdequate ~ MigStatus, data = ndays3)
+    summary(admod.nb3)
+
+    # back-transformed coefficients for summaries
+    (est <- cbind(Estimate = exp(coef(admod.nb)), exp(confint(admod.nb))))
+    (est <- cbind(Estimate = exp(coef(admod.nb2)), exp(confint(admod.nb2))))
+    (est <- cbind(Estimate = exp(coef(admod.nb3)), exp(confint(admod.nb3))))
+
+    
+    
+  ## MARGINAL FQ ##
+    
+    # determine whether to use poisson or negbin model #
+    margmod.p <- glm(nMarg ~ MigStatus, data = ndays, family = poisson(link = log))
+    margmod.nb <- glm.nb(nMarg ~ MigStatus, data = ndays)
+    pchisq(2 * (logLik(margmod.nb) - logLik(margmod.p)), df = 1, lower.tail = FALSE)
+      # strong significance suggests negbin more appropriate
+    summary(margmod.nb)
+    
+    # check whether migstatus is a significant predictor of ndays access
+    margmod.nbnull <- update(margmod.nb, . ~ . - MigStatus)
+    anova(margmod.nbnull, margmod.nb)
+      # chi-square indicates migstatus is statistically significant predictor
+    
+    # now with intermediates as reference level
+    margmod.nb2 <- glm.nb(nMarg ~ MigStatus, data = ndays2)
+    summary(margmod.nb2)
+    
+    # and migrants as reference level
+    margmod.nb3 <- glm.nb(nMarg ~ MigStatus, data = ndays3)
+    summary(margmod.nb3)
+
+    # back-transformed coefficients for summaries
+    (est <- cbind(Estimate = exp(coef(margmod.nb)), exp(confint(margmod.nb))))
+    (est <- cbind(Estimate = exp(coef(margmod.nb2)), exp(confint(margmod.nb2))))
+    (est <- cbind(Estimate = exp(coef(margmod.nb3)), exp(confint(margmod.nb3))))
+    
+
+    
+  ## POOR FQ ##
+    
+    # determine whether to use poisson or negbin model #
+    prmod.p <- glm(nPoor ~ MigStatus, data = ndays, family = poisson(link = log))
+    prmod.nb <- glm.nb(nPoor ~ MigStatus, data = ndays)
+    pchisq(2 * (logLik(prmod.nb) - logLik(prmod.p)), df = 1, lower.tail = FALSE)
+    # strong significance suggests negbin more appropriate
+    summary(prmod.nb)
+    
+    # check whether migstatus is a significant predictor of ndays access
+    prmod.nbnull <- update(prmod.nb, . ~ . - MigStatus)
+    anova(prmod.nbnull, prmod.nb)
+    # chi-square indicates migstatus is statistically significant predictor
+    
+    # now with intermediates as reference level
+    prmod.nb2 <- glm.nb(nPoor ~ MigStatus, data = ndays2)
+    summary(prmod.nb2)
+    
+    # and migrants as reference level
+    prmod.nb3 <- glm.nb(nPoor ~ MigStatus, data = ndays3)
+    summary(prmod.nb3)
+    
+    # back-transformed coefficients for summaries
+    (est <- cbind(Estimate = exp(coef(prmod.nb)), exp(confint(prmod.nb))))
+    (est <- cbind(Estimate = exp(coef(prmod.nb2)), exp(confint(prmod.nb2))))
+    (est <- cbind(Estimate = exp(coef(prmod.nb3)), exp(confint(prmod.nb3))))    
+    
+    
+        
 # summary stats, ndays irrig ag per migstatus
 # also checking median bc data skewed
 any(is.na(mignute.ndays$nDaysAg))
@@ -336,8 +472,138 @@ max(avgday$DOY) - min(avgday$DOY)
 
 
 
-### ### ### ### ### ### ### # 
-#### TESTS & COMPARISONS ####
+
+## comparing counts per group ####
+
+ndays <- mignute.ndays %>%
+  within(MigStatus <- factor(MigStatus, ordered = FALSE))
+
+## AD ##
+
+# first try poisson model #
+nad <- glm(nAdequate ~ MigStatus, data = ndays, family = poisson(link = log))
+nad
+summary(nad)
+
+# check for issues with using this model type
+# using chi-square test to compare residual (unexplained) deviance
+# to a model where residuals align well with model assumptions
+with(nad, cbind(res.deviance = deviance, df = df.residual,
+                p = pchisq(deviance, df.residual, lower.tail=FALSE)))
+# probably overdispersed based on this significant result
+# and the fact that residual deviance:DOF >>>1 (641:72)
+
+
+nad2 <- glm.nb(nAdequate ~ MigStatus, data = ndays)
+nad2
+summary(nad2)
+85/72 # seems to have handled overdispersion issue well
+
+# check whether migstatus is a significant predictor of ndays access
+nad2.1 <- update(nad2, . ~ . - MigStatus)
+anova(nad2, nad2.1)
+
+# compare negbin to poisson to verify data better meets negbin assumptions
+pchisq(2 * (logLik(nad2) - logLik(nad)), df = 1, lower.tail = FALSE)
+# strong significance suggests negbin more appropriate
+
+# CIs for negbin
+est <- cbind(Estimate = exp(coef(nad2)), exp(confint(nad2)))
+est
+# note exponentiated vals 
+est.notexp <- cbind(Estimate = coef(nad2), confint(nad2))
+est.notexp
+
+# now with intermediates as reference level
+# to get sig values (or not) bt mig and int
+ndays.int <- ndays
+#ndays.int$MigStatus <- factor(ndays.int$MigStatus, ordered = TRUE)
+ndays.int$MigStatus <- relevel(ndays.int$MigStatus, ref = "Intermediate")
+str(ndays.int)
+
+nad2.int <- glm.nb(nAdequate ~ MigStatus, data = ndays.int)
+nad2.int
+summary(nad2.int)
+
+
+
+## MARG
+
+# first try poisson model #
+nm <- glm(nMarg ~ MigStatus, data = ndays, family = poisson(link = log))
+nm
+summary(nm)
+
+# check for issues with using this model type
+# using chi-square test to compare residual (unexplained) deviance
+# to a model where residuals align well with model assumptions
+with(nm, cbind(res.deviance = deviance, df = df.residual,
+                p = pchisq(deviance, df.residual, lower.tail=FALSE)))
+# probably overdispersed based on this significant result
+# and the fact that residual deviance:DOF >>>1 (641:72)
+
+
+nm2 <- glm.nb(nMarg ~ MigStatus, data = ndays)
+nm2
+summary(nm2)
+85/72 # seems to have handled overdispersion issue well
+
+# check whether migstatus is a significant predictor of ndays access
+nm2.1 <- update(nm2, . ~ . - MigStatus)
+anova(nm2, nm2.1)
+
+# compare negbin to poisson to verify data better meets negbin assumptions
+pchisq(2 * (logLik(nm2) - logLik(nm)), df = 1, lower.tail = FALSE)
+# strong significance suggests negbin more appropriate
+
+# CIs for negbin
+estm <- cbind(Estimate = exp(coef(nm2)), exp(confint(nm2)))
+estm
+# note exponentiated vals 
+
+## intermediate as referenc elevel
+nm2.int <- glm.nb(nMarg~MigStatus, data = ndays.int)
+summary(nm2.int)
+(estm.int <- cbind(Estimate = exp(coef(nm2.int)), exp(confint(nm2.int))))
+
+
+## POOR 
+
+
+# first try poisson model #
+np <- glm(nPoor ~ MigStatus, data = ndays, family = poisson(link = log))
+np
+summary(np)
+
+# check for issues with using this model type
+# using chi-square test to compare residual (unexplained) deviance
+# to a model where residuals align well with model assumptions
+with(np, cbind(res.deviance = deviance, df = df.residual,
+               p = pchisq(deviance, df.residual, lower.tail=FALSE)))
+# probably overdispersed based on this significant result
+# and the fact that residual deviance:DOF >>>1 (641:72)
+
+
+np2 <- glm.nb(nPoor ~ MigStatus, data = ndays)
+np2
+summary(np2)
+54/72 # hm, underdispersed?
+
+# compare negbin to poisson to verify data better meets negbin assumptions
+pchisq(2 * (logLik(np2) - logLik(np)), df = 1, lower.tail = FALSE)
+# ok, strong significance suggests negbin more appropriate
+
+
+# check whether migstatus is a significant predictor of ndays access
+np2.1 <- update(np2, . ~ . - MigStatus)
+anova(np2, np2.1)
+# coool, it's not
+
+# CIs for negbin
+estp <- cbind(Estimate = exp(coef(np2)), exp(confint(np2)))
+estp
+# note exponentiated vals 
+
 
 
 
@@ -439,63 +705,6 @@ summary(migstatus$VI50)
 
 
 
-### ### ### ### ### ### ### #
-## de per landcover type ####
-
-# [see code below this part for general model version] #
-dedat <- read.csv("../Vegetation/DE-model-data.csv") %>%
-  dplyr::select(DE, landcov, class_name)
-sub1 <- filter(dedat, landcov == 1)
-sub2 <- filter(dedat, landcov == 2)
-sub3 <- filter(dedat, landcov == 3)
-sub4 <- filter(dedat, landcov == 4)
-sub5 <- filter(dedat, landcov == 5)
-sub6 <- filter(dedat, landcov == 6)
-sub7 <- filter(dedat, landcov == 7)
-sub8 <- filter(dedat, landcov == 8)
-sub9 <- filter(dedat, landcov == 9)
-sub10 <- filter(dedat, landcov == 10)
-sub11 <- filter(dedat, landcov == 11)
-sub12 <- filter(dedat, landcov == 12)
-par(mfrow=c(3,4))
-hist(sub1$DE, xlab = "Mesic Forest (Burn >15)")
-hist(sub2$DE, xlab = "Dry Forest (Burn >15)")
-hist(sub3$DE, xlab = "Grass/Shrub/Open Woodland")
-hist(sub4$DE, xlab = "Dry Ag")
-hist(sub5$DE, xlab = "Valley Bottom Riparian")
-hist(sub6$DE, xlab = "Montane Riparian")
-hist(sub7$DE, xlab = "Irrigated Ag")
-hist(sub8$DE, xlab = "Dry Forest (Burn 0-5)")
-hist(sub9$DE, xlab = "Dry Forest (Burn 6-15)")
-hist(sub10$DE, xlab = "Mesic Forest (Burn 0-5)")
-hist(sub11$DE, xlab = "Mesic Forest (Burn 6-15)")
-hist(sub12$DE, xlab = "Rx Dry Forest (Burn 0-5)")
-
-lctab <- ddply(dedat, "class_name", summarise,
-                N = length(DE),
-                mean = mean(DE),
-               median = median(DE),
-                sd = sd(DE),
-                se = sd/sqrt(N))
-arrange(lctab, desc(median))
-write.csv(lctab, "de-by-landcover.csv", row.names=F)
-
-
-### ### ### ### ### ### ### ### ### #
-## use of irrig ag by diff behavs####
-
-table(mignute.ndays$MigStatus, mignute.ndays$nDaysAg)
-
-dag <- aov(nDaysAg ~ MigStatus, data = mignute.ndays)
-summary(dag)
-# significant
-
-# tukey hsd multiple comparison 
-dagt <- TukeyHSD(aov(nDaysAg ~ MigStatus, data = mignute.ndays))
-dagt  
-# mig sig less than res & int. Res/int no diff
-
-
 
 
 
@@ -584,4 +793,46 @@ tp <-  ggplot(avgday.date,
                     text = element_text(size=12))
 tp
 ggsave("timeplot-bw.jpg", plot = tp, device = "jpeg",
+       dpi = 300)
+
+
+# plot DE by landcover
+de.lc <- de.plot %>%
+  transform(Landcover = ifelse(Landcover == "Irrigated Ag",
+                               "Irrigated Agricultural Land", 
+                               ifelse(Landcover == "Rx Dry Forest Burn 0-5",
+                                      "Dry Forest - recent prescribed burn",
+                                      ifelse(Landcover == "Dry Forest Burn 0-5",
+                                             "Dry Forest - recent wildfire",
+                                             ifelse(Landcover == "Dry Ag",
+                                                    "Non-irrigated Agricultural Land",
+                                                    ifelse(Landcover == "Mesic Forest Burn 0-5",
+                                                           "Wet Forest - recent wildfire",
+                                                           ifelse(Landcover == "Mesic Forest Burn 6-15",
+                                                                  "Wet Forest - burned 6-15 years ago",
+                                                                  ifelse(Landcover == "Dry Forest Burn 6-15",
+                                                                         "Dry Forest - burned 6-15 years ago",
+                                                                         ifelse(Landcover == "Mesic Forest (Burn >15)",
+                                                                                "Wet forest - burned >15 years ago",
+                                                                                ifelse(Landcover == "Dry Forest (Burn >15)",
+                                                                                       "Dry Forest - burned >15 years ago",
+                                                                                       paste(Landcover))))))))))) %>%
+  group_by(Landcover) %>%
+  summarise(Mean = mean(DE), Median = median(DE), n = n(), SD = sd(DE)) %>%
+  ungroup()
+de.lc$Landcover <- factor(de.lc$Landcover,
+                          levels = de.lc$Landcover[order(de.lc$Mean)],
+                          ordered = TRUE)
+
+horiz <- ggplot(data = de.lc, 
+                aes(y = Landcover, x = Mean,
+                    xmin = Mean-2*SD,
+                    xmax = Mean+2*SD)) +
+  geom_point(size = 3) +
+  geom_errorbarh() +
+  geom_vline(xintercept = 2.75) +
+  theme(text = element_text(size = 18)) +
+  labs(x = "Forage Quality (kcal/g)", y = "") 
+horiz
+ggsave("de-landcov-horiz.jpg", plot = horiz, device = "jpeg",
        dpi = 300)
