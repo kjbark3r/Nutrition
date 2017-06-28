@@ -18,6 +18,7 @@
 library(RODBC)
 library(reshape2)
 library(gridExtra) # >1 plot per display
+library(grid) # plot title for grid plot
 library(pscl)
 library(lme4)
 library(MASS) # for negbin model
@@ -325,9 +326,19 @@ write.csv(sumtab, "de-per-migstatus.csv", row.names=F)
   de.plot$Landcover <- relevel(de.plot$Landcover, "Irrigated Ag")
 
   # model de per landcover type
-  lcmod <- glm(DE ~ Landcover, data = de.plot)
+  lcmod <- lm(DE ~ Landcover, data = de.plot)
   summary(lcmod)
+  par(mfrow=c(2,2)); plot(lcmod)
   
+  # extract relevant info for manuscript table/figure
+  lctab <- data.frame(cbind(Estimate = coef(lcmod), 
+                            confint(lcmod), 
+                            p = summary(lcmod)$coefficients[,4])) %>%
+    add_rownames("Landcover") %>%
+    arrange(desc(Estimate))
+  write.csv(lctab, file = "lctab.csv")
+  
+
 
 #### avg daily de per migstatus ####
 
@@ -735,12 +746,13 @@ ad <- ggplot(data = mignute.ndays.rn,
   geom_boxplot(width=.1, outlier.colour=NA) +
   stat_summary(fun.y=mean, geom="point", 
                fill="black", shape=21, size=2.5) +
-  labs(title = "Adequate FQ",
+  labs(title = "Adequate",
        x = "", y = "# Days Access") +
   theme(legend.position="none",
-        text = element_text(size=12),
-        axis.text.x = element_text(size = 10),
-        plot.title = element_text(hjust = 0.5)) + 
+        text = element_text(size=15),
+        axis.text.x = element_text(size = 15),
+        plot.title = element_text(hjust = 0.5),
+        axis.title.y = element_text(size = 15)) + 
   ylim(0,50)
 marg <- ggplot(data = mignute.ndays.rn, 
   aes(x = MigStatus, y = nMarg)) +
@@ -748,12 +760,12 @@ marg <- ggplot(data = mignute.ndays.rn,
   geom_boxplot(width=.1, outlier.colour=NA) +
   stat_summary(fun.y=mean, geom="point", 
                fill="black", shape=21, size=2.5) +
-  labs(title = "Marginal FQ", x="", y="") +
+  labs(title = "Marginal", x="", y="") +
   theme(legend.position="none",
         axis.text.y=element_blank(),
         axis.ticks.y=element_blank(),
-        text = element_text(size=12),
-        axis.text.x = element_text(size = 10),
+        text = element_text(size=15),
+        axis.text.x = element_text(size = 15),
         plot.title = element_text(hjust = 0.5)) + 
   ylim(0,50)
 pr <- ggplot(data = mignute.ndays.rn, 
@@ -762,18 +774,22 @@ pr <- ggplot(data = mignute.ndays.rn,
   geom_boxplot(width=.1, outlier.colour=NA) +
   stat_summary(fun.y=mean, geom="point", 
                fill="black", shape=21, size=2.5) +
-  labs(title = "Poor FQ", x="", y="") + 
+  labs(title = "Poor", x="", y="") + 
   theme(legend.position="none",
         axis.text.y=element_blank(),
         axis.ticks.y=element_blank(),
-        text = element_text(size=12),
-        axis.text.x = element_text(size = 10),
+        text = element_text(size=15),
+        axis.text.x = element_text(size = 15),
         plot.title = element_text(hjust = 0.5)) + 
   ylim(0,50)
-  #plot all together
-ndaysplot <- grid.arrange(ad, marg, pr, ncol = 3)
+  #create plot title
+  ndaystitle <- textGrob("Forage Quality", 
+                         gp=gpar(fontsize=19))
+  #plot all together with title
+ndaysplot <- grid.arrange(ad, marg, pr, ncol = 3,
+                          top = ndaystitle)
   #export
-ggsave("ndaysaccess", plot = ndaysplot, device = "jpeg",
+ggsave("ndaysaccess.jpg", plot = ndaysplot, device = "jpeg",
        dpi = 300)
 
 
@@ -796,7 +812,7 @@ ggsave("timeplot-bw.jpg", plot = tp, device = "jpeg",
        dpi = 300)
 
 
-# plot DE by landcover
+#### DE by landcover ####
 de.lc <- de.plot %>%
   transform(Landcover = ifelse(Landcover == "Irrigated Ag",
                                "Irrigated Agricultural Land", 
