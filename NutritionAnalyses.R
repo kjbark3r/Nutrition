@@ -723,6 +723,10 @@ summary(migstatus$VI50)
 ####  |VISUALS|  ####
 ### ### ### ### ### #
 
+wcol = 85
+wpg = 180
+
+
 ##### Violinplots - # Days Exposure ####
 ## to adequate/marginal/poor FQ
 ## for residents, intermediates, and migrants
@@ -789,8 +793,14 @@ pr <- ggplot(data = mignute.ndays.rn,
 ndaysplot <- grid.arrange(ad, marg, pr, ncol = 3,
                           top = ndaystitle)
   #export
-ggsave("ndaysaccess.jpg", plot = ndaysplot, device = "jpeg",
-       dpi = 300)
+ggsave("ndaysaccess.jpg", 
+       plot = ndaysplot, 
+       device = "jpeg",
+       dpi = 300,
+       units = "mm",
+       width = wpg,
+       height = wcol)
+
 
 
 #### timeplot - de by day ####
@@ -808,38 +818,92 @@ tp <-  ggplot(avgday.date,
               theme(legend.title=element_blank(),
                     text = element_text(size=12))
 tp
-ggsave("timeplot-bw.jpg", plot = tp, device = "jpeg",
-       dpi = 300)
+ggsave("timeplot-bw.jpg", 
+       plot = tp, 
+       device = "jpeg",
+       dpi = 300,
+       units = "mm",
+       width = wpg,
+       height = wcol)
+
+#### daily nute ~ mig continuum ####
+fqmig <- ggplot(avgday.indiv,
+                aes(x = MigRank, y = AvgDayDE)) +
+  labs(x = "Resident                                                   Migrant", 
+       y = "Forage Quality (kcal/g)") +
+  geom_smooth(color = "black")+
+  geom_point() +
+  geom_hline(yintercept=2.75) +
+  theme(text = element_text(size=20),
+        axis.text.x=element_blank()) 
+fqmig
+ggsave("nute-continuum.jpg", 
+       plot = fqmig, 
+       device = "jpeg",
+       dpi = 300,
+       units = "mm",
+       width = wpg,
+       height = wcol)
+
+ggsave("nute-migrank.jpg", plot = fqmig, device = "jpeg",
+       dpi = 480)
 
 
 #### DE by landcover ####
 de.lc <- de.plot %>%
   transform(Landcover = ifelse(Landcover == "Irrigated Ag",
-                               "Irrigated Agricultural Land", 
+                               "Irrigated agriculture", 
                                ifelse(Landcover == "Rx Dry Forest Burn 0-5",
-                                      "Dry Forest - recent prescribed burn",
+                                      "Dry forest, prescribed burn 0-5 yrs ago",
                                       ifelse(Landcover == "Dry Forest Burn 0-5",
-                                             "Dry Forest - recent wildfire",
+                                             "Dry forest, burn 0-5 yrs ago",
                                              ifelse(Landcover == "Dry Ag",
-                                                    "Non-irrigated Agricultural Land",
+                                                    "Non-irrigated agriculture",
                                                     ifelse(Landcover == "Mesic Forest Burn 0-5",
-                                                           "Wet Forest - recent wildfire",
+                                                           "Wet forest, burn 0-5 yrs ago",
                                                            ifelse(Landcover == "Mesic Forest Burn 6-15",
-                                                                  "Wet Forest - burned 6-15 years ago",
+                                                                  "Wet forest, burn 6-15 yrs ago",
                                                                   ifelse(Landcover == "Dry Forest Burn 6-15",
-                                                                         "Dry Forest - burned 6-15 years ago",
+                                                                         "Dry forest, burn 6-15 yrs ago",
                                                                          ifelse(Landcover == "Mesic Forest (Burn >15)",
-                                                                                "Wet forest - burned >15 years ago",
+                                                                                "Wet forest, burn >15 yrs ago",
                                                                                 ifelse(Landcover == "Dry Forest (Burn >15)",
-                                                                                       "Dry Forest - burned >15 years ago",
-                                                                                       paste(Landcover))))))))))) %>%
+                                                                                       "Dry forest, burn >15 yrs ago",
+                                                                                       ifelse(Landcover == "Grass/Shrub/Open Woodland",
+                                                                                              "Grassland/shrubland",
+                                                                                       paste(Landcover)))))))))))) %>%
   group_by(Landcover) %>%
   summarise(Mean = mean(DE), Median = median(DE), n = n(), SD = sd(DE)) %>%
   ungroup()
 de.lc$Landcover <- factor(de.lc$Landcover,
-                          levels = de.lc$Landcover[order(de.lc$Mean)],
+                          levels = de.lc$Landcover[order(de.lc$Mean,
+                                                         decreasing = TRUE)],
                           ordered = TRUE)
 
+vert <- ggplot(data = de.lc, 
+               aes(x = Landcover, y = Mean,
+                   ymin = Mean-2*SD,
+                   ymax = Mean+2*SD)) +
+  geom_point(size = 3) +
+  geom_errorbar() +
+  geom_hline(yintercept = 2.75) +
+  theme(text = element_text(size = 20),
+        axis.text.y = element_text(size = 18),
+        axis.text.x = element_text(size = 18,
+                                   angle = 65,
+                                   hjust = 1)) +
+  labs(y = "Forage Quality (kcal/g)", x = "") 
+
+vert  
+ggsave("de-landcov-vert.jpg", 
+       plot = vert, 
+       device = "jpeg",
+       dpi = 300,
+       units = "mm",
+       width = wpg)
+  
+
+# horizontal plot of the above (for presentations)
 horiz <- ggplot(data = de.lc, 
                 aes(y = Landcover, x = Mean,
                     xmin = Mean-2*SD,
@@ -847,8 +911,14 @@ horiz <- ggplot(data = de.lc,
   geom_point(size = 3) +
   geom_errorbarh() +
   geom_vline(xintercept = 2.75) +
-  theme(text = element_text(size = 18)) +
+  theme(text = element_text(size = 20),
+        axis.text.y = element_text(size = 18),
+        axis.text.x = element_text(size = 18)) +
   labs(x = "Forage Quality (kcal/g)", y = "") 
 horiz
-ggsave("de-landcov-horiz.jpg", plot = horiz, device = "jpeg",
-       dpi = 300)
+ggsave("de-landcov-horiz.jpg", 
+       plot = horiz, 
+       device = "jpeg",
+       dpi = 300,
+       units = "mm",
+       width = 180)
