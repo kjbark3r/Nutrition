@@ -1242,3 +1242,22 @@ smoothed = loess(AvgDayDE~MigRank,
                  model = TRUE)
 summary(smoothed)
 # oh oops, turns out you can't get an eqn from loess
+
+
+
+# trying to understand whether interaction terms
+# also tell you the effect of the covariate itself
+#(just for learning purposes while pondering chapter 2 models)
+testdat <- fn
+testdat$MigStatus = factor(testdat$MigStatus, ordered = FALSE)
+
+t1 <- glm(PctN ~ MigStatus + DOY, data = testdat)
+summary(t1)
+
+t2 <- glm(PctN ~ MigStatus * DOY, data = testdat)
+summary(t2)
+
+# ok so actual values do change
+# but direction of effect
+# and relative significance are preserved,
+# at least in this example
