@@ -727,7 +727,7 @@ wcol = 85
 wpg = 180
 
 
-##### Violinplots - # Days Exposure ####
+##### Violinplots - # Days Exposure [manu fig.1] ####
 ## to adequate/marginal/poor FQ
 ## for residents, intermediates, and migrants
 
@@ -745,13 +745,14 @@ mignute.ndays.rn$MigStatus = factor(
                             ordered = TRUE) 
   # plots
 ad <- ggplot(data = mignute.ndays.rn, 
-  aes(x = MigStatus, y = nAdequate)) +
+  aes(x = MigStatus, y = nAdequate))  +
+  theme_bw() +
   geom_violin(fill="grey") +
   geom_boxplot(width=.1, outlier.colour=NA) +
   stat_summary(fun.y=mean, geom="point", 
                fill="black", shape=21, size=2.5) +
   labs(title = "Adequate",
-       x = "", y = "# Days Access") +
+       x = "", y = "Number of days access") +
   theme(legend.position="none",
         text = element_text(size=15),
         axis.text.x = element_text(size = 15),
@@ -759,7 +760,8 @@ ad <- ggplot(data = mignute.ndays.rn,
         axis.title.y = element_text(size = 15)) + 
   ylim(0,50)
 marg <- ggplot(data = mignute.ndays.rn, 
-  aes(x = MigStatus, y = nMarg)) +
+  aes(x = MigStatus, y = nMarg))  +
+  theme_bw() +
   geom_violin(fill="grey") +
   geom_boxplot(width=.1, outlier.colour=NA) +
   stat_summary(fun.y=mean, geom="point", 
@@ -773,7 +775,8 @@ marg <- ggplot(data = mignute.ndays.rn,
         plot.title = element_text(hjust = 0.5)) + 
   ylim(0,50)
 pr <- ggplot(data = mignute.ndays.rn, 
-  aes(x = MigStatus, y = nPoor)) +
+  aes(x = MigStatus, y = nPoor))  +
+  theme_bw() +
   geom_violin(fill="grey") +
   geom_boxplot(width=.1, outlier.colour=NA) +
   stat_summary(fun.y=mean, geom="point", 
@@ -803,7 +806,7 @@ ggsave("ndaysaccess.jpg",
 
 
 
-#### timeplot - de by day ####
+#### timeplot - de by day [manu fig.2] ####
 avgday.date <- avgday %>%
   mutate(Date = as.Date(DOY, origin = "2014-01-01"))
 tp <-  ggplot(avgday.date, 
@@ -811,12 +814,16 @@ tp <-  ggplot(avgday.date,
                   shape = MigStatus,
                   linetype = MigStatus)) +
               geom_point() +
-    geom_smooth(color = "black")+
-              geom_hline(yintercept=2.75) +
-              labs(x = "", 
-                   y = "Forage quality (kcal/g of forage)") +
-              theme(legend.title=element_blank(),
-                    text = element_text(size=12))
+  theme_bw() +
+  geom_smooth(color = "black") +
+            geom_hline(yintercept=2.75) +
+            labs(x = "", 
+                 y = "Forage quality \n(kcal/g of forage)") +
+            theme(legend.title=element_blank(),
+                  text = element_text(size=20)) +
+  guides(color = guide_legend(override.aes = list(linetype = 0)),
+         shape = guide_legend(override.aes = list(linetype = 0,
+                                                  size = 5)))
 tp
 ggsave("timeplot-bw.jpg", 
        plot = tp, 
@@ -826,16 +833,17 @@ ggsave("timeplot-bw.jpg",
        width = wpg,
        height = wcol)
 
-#### daily nute ~ mig continuum ####
+#### daily nute ~ mig continuum [manu fig.3] ####
 fqmig <- ggplot(avgday.indiv,
                 aes(x = MigRank, y = AvgDayDE)) +
+  theme_bw() +
   labs(x = "Resident                                                   Migrant", 
-       y = "Forage Quality (kcal/g)") +
+       y = "Forage quality (kcal/g)") +
   geom_smooth(color = "black")+
   geom_point() +
   geom_hline(yintercept=2.75) +
   theme(text = element_text(size=20),
-        axis.text.x=element_blank()) 
+        axis.text.x=element_blank())
 fqmig
 ggsave("nute-continuum.jpg", 
        plot = fqmig, 
@@ -845,11 +853,8 @@ ggsave("nute-continuum.jpg",
        width = wpg,
        height = wcol)
 
-ggsave("nute-migrank.jpg", plot = fqmig, device = "jpeg",
-       dpi = 480)
 
-
-#### DE by landcover ####
+#### DE by landcover [manu fig.4] ####
 de.lc <- de.plot %>%
   transform(Landcover = ifelse(Landcover == "Irrigated Ag",
                                "Irrigated agriculture", 
@@ -884,16 +889,16 @@ vert <- ggplot(data = de.lc,
                aes(x = Landcover, y = Mean,
                    ymin = Mean-2*SD,
                    ymax = Mean+2*SD)) +
+  theme_bw() +
   geom_point(size = 3) +
-  geom_errorbar() +
+  geom_errorbar(width = 0.1) +
   geom_hline(yintercept = 2.75) +
   theme(text = element_text(size = 20),
         axis.text.y = element_text(size = 18),
         axis.text.x = element_text(size = 18,
                                    angle = 65,
                                    hjust = 1)) +
-  labs(y = "Forage Quality (kcal/g)", x = "") 
-
+  labs(y = "Forage quality (kcal/g)", x = "") 
 vert  
 ggsave("de-landcov-vert.jpg", 
        plot = vert, 
