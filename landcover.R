@@ -114,6 +114,21 @@ tapply(de.plot$DE, de.plot$Landcover, length)
 
 
 
+#### DE~LC MODEL COEFFS + PPN SUMMER RANGE ####
+
+    # for last-minute plan to include all in table in mignute ms
+
+    # read in DE data and run model (just to verify numbers in csv)
+    de.plot <- read.csv("de-per-plot.csv")
+    str(de.plot)  # sanity check - make sure factor is unordered (levels = good)
+    de.plot$Landcover <- relevel(de.plot$Landcover, "Irrigated Ag") # set baseline
+    lcmod <- lm(DE ~ Landcover, data = de.plot)
+    summary(lcmod)
+    
+    # read in ppn data and combine with model output
+    ppn <- read.csv("landcov-ppns-smr.csv")
+    
+
 
 #### PLOTS ####
 
