@@ -805,6 +805,90 @@ ggsave("ndaysaccess.jpg",
        height = wcol)
 
 
+##### Violinplots - # Days Exposure [color for presns] ####
+
+# dataframe
+mignute.ndays.rn <- mignute.ndays
+mignute.ndays.rn$MigStatus <- ifelse(
+  mignute.ndays.rn$MigStatus == "Resident", "Res",
+  ifelse(mignute.ndays.rn$MigStatus == "Intermediate", 
+         "Int", "Mig"))
+mignute.ndays.rn$MigStatus = factor(
+  mignute.ndays.rn$MigStatus,
+  levels = c("Res",
+             "Int",
+             "Mig"),
+  ordered = TRUE) 
+# plots
+ad <- ggplot(data = mignute.ndays.rn, 
+             aes(x = MigStatus, y = nAdequate,
+                 color = MigStatus,
+                 fill = MigStatus))  +
+  geom_violin(trim =FALSE) +
+  geom_boxplot(width=.1, outlier.colour=NA,
+               colour = "black", fill = "white") +
+  stat_summary(fun.y=mean, geom="point", 
+               fill="black", shape=21, size=2.5) +
+  labs(title = "Adequate",
+       x = "", y = "") +
+  theme(legend.position="none",
+        text = element_text(size=15),
+        axis.text.x = element_text(size = 15),
+        plot.title = element_text(hjust = 0.5),
+        axis.title.y = element_text(size = 15)) + 
+  ylim(0,50)
+
+marg <- ggplot(data = mignute.ndays.rn, 
+               aes(x = MigStatus, y = nMarg,
+                   color = MigStatus,
+                   fill = MigStatus))  +
+  geom_violin(trim =FALSE) +
+  geom_boxplot(width=.1, outlier.colour=NA,
+               colour = "black", fill = "white") +
+  stat_summary(fun.y=mean, geom="point", 
+               fill="black", shape=21, size=2.5) +
+  labs(title = "Marginal",
+       x = "", y = "") +
+  theme(legend.position="none",
+        text = element_text(size=15),
+        axis.text.x = element_text(size = 15),
+        plot.title = element_text(hjust = 0.5),
+        axis.title.y = element_text(size = 15)) + 
+  ylim(0,50)
+
+pr <- ggplot(data = mignute.ndays.rn, 
+             aes(x = MigStatus, y = nPoor,
+                 color = MigStatus,
+                 fill = MigStatus))  +
+  geom_violin(trim =FALSE) +
+  geom_boxplot(width=.1, outlier.colour=NA,
+               colour = "black", fill = "white") +
+  stat_summary(fun.y=mean, geom="point", 
+               fill="black", shape=21, size=2.5) +
+  labs(title = "Poor",
+       x = "", y = "Number of days access") +
+  theme(legend.position="none",
+        text = element_text(size=15),
+        axis.text.x = element_text(size = 15),
+        plot.title = element_text(hjust = 0.5),
+        axis.title.y = element_text(size = 15)) + 
+  ylim(0,50)
+
+#create plot title
+ndaystitle <- textGrob("Forage Quality", 
+                       gp=gpar(fontsize=19))
+#plot all together with title
+ndaysplot <- grid.arrange(pr, marg, ad, ncol = 3,
+                          top = ndaystitle)
+#export
+ggsave("ndaysaccess-col.jpg", 
+       plot = ndaysplot, 
+       device = "jpeg",
+       dpi = 300,
+       units = "mm",
+       width = wpg,
+       height = wcol)
+
 
 #### timeplot - de by day [manu fig.2] ####
 avgday.date <- avgday %>%
@@ -833,6 +917,37 @@ ggsave("timeplot-bw.jpg",
        width = wpg,
        height = wcol)
 
+
+#### timeplot - de by day [color for presns] ####
+avgday.date <- avgday %>%
+  mutate(Date = as.Date(DOY, origin = "2014-01-01"))
+
+tp <-  ggplot(avgday.date, 
+              aes(Date, AvgDayDE, 
+                  shape = MigStatus,
+                  linetype = MigStatus,
+                  color = MigStatus)) +
+  geom_point() +
+  geom_smooth() +
+  geom_hline(yintercept=2.75,
+             linetype = "dotted") +
+  labs(x = "", 
+       y = "Forage quality (kcal/g)") +
+  theme(legend.title=element_blank(),
+        text = element_text(size=16)) +
+  guides(color = guide_legend(override.aes = list(linetype = 0)),
+         shape = guide_legend(override.aes = list(linetype = 0,
+                                                  size = 5)))
+tp
+ggsave("timeplot-col.jpg", 
+       plot = tp, 
+       device = "jpeg",
+       dpi = 300,
+       units = "mm",
+       width = wpg,
+       height = wcol)
+
+
 #### daily nute ~ mig continuum [manu fig.3] ####
 fqmig <- ggplot(avgday.indiv,
                 aes(x = MigRank, y = AvgDayDE)) +
@@ -854,7 +969,30 @@ ggsave("nute-continuum.jpg",
        height = wcol)
 
 
-#### DE by landcover [manu fig.4] ####
+#### daily nute ~ mig continuum [color for presn] ####
+fqmig <- ggplot(avgday.indiv,
+                aes(x = MigRank, y = AvgDayDE)) +
+  labs(x = "Resident                                                   Migrant", 
+       y = "Forage quality (kcal/g)") +
+  geom_smooth(color = "dark green")+
+  geom_point(color = "dark green") +
+  geom_hline(yintercept=2.75,
+             linetype = "dotted") +
+  theme(text = element_text(size=20),
+        axis.text.x=element_blank())
+fqmig
+ggsave("nute-continuum-col.jpg", 
+       plot = fqmig, 
+       device = "jpeg",
+       dpi = 300,
+       units = "mm",
+       width = wpg,
+       height = wcol)
+
+#### DE by landcover [manu fig.4 - NIXED] ####
+
+de.plot <- read.csv("de-per-plot.csv")
+
 de.lc <- de.plot %>%
   transform(Landcover = ifelse(Landcover == "Irrigated Ag",
                                "Irrigated agriculture", 
@@ -908,22 +1046,90 @@ ggsave("de-landcov-vert.jpg",
        width = wpg)
   
 
-# horizontal plot of the above (for presentations)
-horiz <- ggplot(data = de.lc, 
+#### DE by landcover [horiz & color for presns] ####
+
+de.plot <- read.csv("de-per-plot.csv")
+de.lc2 <- de.plot %>%
+  transform(Landcover = ifelse(Landcover == "Irrigated Ag",
+                               "Irrigated agriculture", 
+                               ifelse(Landcover == "Rx Dry Forest Burn 0-5",
+                                      "Dry Forest (Rx burn 0-5 y.a.)",
+                                      ifelse(Landcover == "Dry Forest Burn 0-5",
+                                             "Dry Forest (burn 0-5 y.a.)",
+                                             ifelse(Landcover == "Dry Ag",
+                                                    "Non-irrigated agriculture",
+                                                    ifelse(Landcover == "Mesic Forest Burn 0-5",
+                                                           "Wet Forest (burn 0-5 y.a.)",
+                                                           ifelse(Landcover == "Mesic Forest Burn 6-15",
+                                                                  "Wet Forest (burn 6-15 y.a.)",
+                                                                  ifelse(Landcover == "Dry Forest Burn 6-15",
+                                                                         "Dry Forest (burn 6-15 y.a.)",
+                                                                         ifelse(Landcover == "Mesic Forest (Burn >15)",
+                                                                                "Wet Forest (burn >15 y.a.)",
+                                                                                ifelse(Landcover == "Dry Forest (Burn >15)",
+                                                                                       "Dry Forest (burn >15 y.a.)",
+                                                                                       ifelse(Landcover == "Grass/Shrub/Open Woodland",
+                                                                                              "Grassland/shrubland",
+                                                                                              paste(Landcover)))))))))))) %>%
+  group_by(Landcover) %>%
+  summarise(Mean = mean(DE), Median = median(DE), n = n(), SD = sd(DE)) %>%
+  ungroup()
+de.lc2$Landcover <- factor(de.lc2$Landcover,
+                          levels = de.lc2$Landcover[order(de.lc2$Mean,
+                                                         decreasing = TRUE)],
+                          ordered = TRUE)
+
+
+de.lc2$Landcover <- factor(de.lc2$Landcover,
+                          levels = de.lc2$Landcover[order(de.lc2$Mean,
+                                                         decreasing = FALSE)],
+                          ordered = TRUE)
+horiz <- ggplot(data = de.lc2, 
                 aes(y = Landcover, x = Mean,
                     xmin = Mean-2*SD,
                     xmax = Mean+2*SD)) +
   geom_point(size = 3) +
-  geom_errorbarh() +
-  geom_vline(xintercept = 2.75) +
-  theme(text = element_text(size = 20),
-        axis.text.y = element_text(size = 18),
-        axis.text.x = element_text(size = 18)) +
+  geom_errorbarh(height = 0.1) +
+  geom_vline(xintercept = 2.75,
+             linetype = "dotted") +
+  theme(text = element_text(size = 16),
+        axis.text.y = element_text(size = 16),
+        axis.text.x = element_text(size = 18),
+        axis.ticks.y = element_blank()) +
   labs(x = "Forage Quality (kcal/g)", y = "") 
 horiz
-ggsave("de-landcov-horiz.jpg", 
+ggsave("de-landcov-horiz-col.jpg", 
        plot = horiz, 
        device = "jpeg",
        dpi = 300,
        units = "mm",
        width = 180)
+
+
+#### HR area violin plots [for presentations] ####
+
+
+hra <- ggplot(data = mignute.ndays, 
+             aes(x = MigStatus, y = HRarea,
+                 color = MigStatus,
+                 fill = MigStatus))  +
+  geom_violin(trim =FALSE) +
+  geom_boxplot(width=.1, outlier.colour=NA,
+               colour = "black", fill = "white") +
+  stat_summary(fun.y=mean, geom="point", 
+               fill="black", shape=21, size=2.5) +
+  labs(#title = "Summer Home Range",
+       x = "", y = expression(paste(
+         "Summer Home Range Area ( ", km^2, ")", sep=""))) +
+  theme(legend.position="none",
+        text = element_text(size=15),
+        axis.text.x = element_text(size = 15),
+        plot.title = element_text(hjust = 0.5),
+        axis.title.y = element_text(size = 15)) 
+hra
+
+#export
+ggsave("hrarea-violins.jpg", 
+       plot = hra, 
+       device = "jpeg",
+       dpi = 300)
