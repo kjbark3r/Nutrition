@@ -1046,7 +1046,7 @@ ggsave("de-landcov-vert.jpg",
        width = wpg)
   
 
-#### DE by landcover [horiz & color for presns] ####
+#### DE by landcover [horiz, vert, color, b&w] ####
 
 de.plot <- read.csv("de-per-plot.csv")
 de.lc2 <- de.plot %>%
@@ -1072,18 +1072,16 @@ de.lc2 <- de.plot %>%
                                                                                               "Grassland/shrubland",
                                                                                               paste(Landcover)))))))))))) %>%
   group_by(Landcover) %>%
-  summarise(Mean = mean(DE), Median = median(DE), n = n(), SD = sd(DE)) %>%
+  dplyr::summarise(Mean = mean(DE), Median = median(DE), n = n(), SD = sd(DE)) %>%
   ungroup()
-de.lc2$Landcover <- factor(de.lc2$Landcover,
-                          levels = de.lc2$Landcover[order(de.lc2$Mean,
-                                                         decreasing = TRUE)],
-                          ordered = TRUE)
-
 
 de.lc2$Landcover <- factor(de.lc2$Landcover,
                           levels = de.lc2$Landcover[order(de.lc2$Mean,
                                                          decreasing = FALSE)],
                           ordered = TRUE)
+
+
+# horiz b&w for presentations
 horiz <- ggplot(data = de.lc2, 
                 aes(y = Landcover, x = Mean,
                     xmin = Mean-2*SD,
@@ -1104,6 +1102,56 @@ ggsave("de-landcov-horiz-col.jpg",
        dpi = 300,
        units = "mm",
        width = 180)
+
+
+# horiz b&w for manu
+de.lc3 <- de.plot %>%
+  transform(Landcover = ifelse(Landcover == "Irrigated Ag",
+                               "Irrigated agriculture", 
+                               ifelse(Landcover == "Rx Dry Forest Burn 0-5",
+                                      "Dry Forest (Prescribed burn <6 yrs. ago)",
+                                      ifelse(Landcover == "Dry Forest Burn 0-5",
+                                             "Dry Forest (burn <6 y.a.)",
+                                             ifelse(Landcover == "Dry Ag",
+                                                    "Non-irrigated agriculture",
+                                                    ifelse(Landcover == "Mesic Forest Burn 0-5",
+                                                           "Wet Forest (<6 yrs. ago)",
+                                                           ifelse(Landcover == "Mesic Forest Burn 6-15",
+                                                                  "Wet Forest (burn 6-15 yrs. ago)",
+                                                                  ifelse(Landcover == "Dry Forest Burn 6-15",
+                                                                         "Dry Forest (burn 6-15 yrs. ago)",
+                                                                         ifelse(Landcover == "Mesic Forest (Burn >15)",
+                                                                                "Wet Forest (burn >15 yrs. ago)",
+                                                                                ifelse(Landcover == "Dry Forest (Burn >15)",
+                                                                                       "Dry Forest (burn >15 yrs. ago)",
+                                                                                       ifelse(Landcover == "Grass/Shrub/Open Woodland",
+                                                                                              "Grassland/shrubland",
+                                                                                              paste(Landcover)))))))))))) %>%
+  group_by(Landcover) %>%
+  dplyr::summarise(Mean = mean(DE), Median = median(DE), n = n(), SD = sd(DE)) %>%
+  ungroup()
+
+horizbw <- ggplot(data = de.lc3, 
+                aes(y = Landcover, x = Mean,
+                    xmin = Mean-2*SD,
+                    xmax = Mean+2*SD)) +
+  theme_bw() +
+  geom_point(size = 3) +
+  geom_errorbarh(height = 0.1) +
+  geom_vline(xintercept = 2.75,
+             linetype = "dotted") +
+  theme(text = element_text(size = 16),
+        axis.text.y = element_text(size = 16),
+        axis.text.x = element_text(size = 18),
+        axis.ticks.y = element_blank()) +
+  labs(x = "Forage Quality (kcal/g)", y = "") 
+horizbw
+
+## EXPORT WITH CORRECT JWM SPECIFICATIONS ##
+
+
+
+
 
 
 #### HR area violin plots [for presentations] ####
