@@ -282,7 +282,7 @@ de.lf <- de %>%
   summarise(StDev = sd(DE, na.rm=TRUE), DE = mean(DE, na.rm=TRUE)) %>%
   ungroup()
 write.csv(de.lf, "../Vegetation/de-by-lifeform-GENERALMODEL.csv")
-
+4
 
 #### avg de in measured plots ####
 de.ns <- de %>%
@@ -310,6 +310,23 @@ sumtab <- ddply(mignute.avg.t, "MigStatus", summarise,
 write.csv(sumtab, "de-per-migstatus.csv", row.names=F)
 
 
+
+#### switching ####
+
+twoyr <- migstatus %>%
+  dplyr::select(c(AnimalID, MigStatus)) %>%
+  group_by(AnimalID) %>%
+  filter(n() > 1) %>%
+  ungroup()
+nrow(twoyr)/2  # 34 indivs w 2 yrs data
+length(unique(migstatus$AnimalID)) # 41 indivs
+nodupe <- distinct(twoyr)
+switch <- nodupe %>%
+  group_by(AnimalID) %>%
+  filter(n() > 1) %>%
+  ungroup()
+nrow(switch)/2 # 18 switched (all to/from intermediate)
+18/34
 
 
 
@@ -997,26 +1014,26 @@ de.lc <- de.plot %>%
   transform(Landcover = ifelse(Landcover == "Irrigated Ag",
                                "Irrigated agriculture", 
                                ifelse(Landcover == "Rx Dry Forest Burn 0-5",
-                                      "Dry forest, prescribed burn 0-5 yrs ago",
+                                      "Dry forest, prescribed burn 1-5 yr ago",
                                       ifelse(Landcover == "Dry Forest Burn 0-5",
-                                             "Dry forest, burn 0-5 yrs ago",
+                                             "Dry forest, burn 1-5 yr ago",
                                              ifelse(Landcover == "Dry Ag",
                                                     "Non-irrigated agriculture",
                                                     ifelse(Landcover == "Mesic Forest Burn 0-5",
-                                                           "Wet forest, burn 0-5 yrs ago",
+                                                           "Wet forest, burn 1-5 yr ago",
                                                            ifelse(Landcover == "Mesic Forest Burn 6-15",
-                                                                  "Wet forest, burn 6-15 yrs ago",
+                                                                  "Wet forest, burn 6-15 yr ago",
                                                                   ifelse(Landcover == "Dry Forest Burn 6-15",
-                                                                         "Dry forest, burn 6-15 yrs ago",
+                                                                         "Dry forest, burn 6-15 yr ago",
                                                                          ifelse(Landcover == "Mesic Forest (Burn >15)",
-                                                                                "Wet forest, burn >15 yrs ago",
+                                                                                "Wet forest, burn >15 yr ago",
                                                                                 ifelse(Landcover == "Dry Forest (Burn >15)",
-                                                                                       "Dry forest, burn >15 yrs ago",
+                                                                                       "Dry forest, burn >15 yr ago",
                                                                                        ifelse(Landcover == "Grass/Shrub/Open Woodland",
                                                                                               "Grassland/shrubland",
                                                                                        paste(Landcover)))))))))))) %>%
   group_by(Landcover) %>%
-  summarise(Mean = mean(DE), Median = median(DE), n = n(), SD = sd(DE)) %>%
+  dplyr::summarise(Mean = mean(DE), Median = median(DE), n = n(), SD = sd(DE)) %>%
   ungroup()
 de.lc$Landcover <- factor(de.lc$Landcover,
                           levels = de.lc$Landcover[order(de.lc$Mean,
@@ -1109,13 +1126,13 @@ de.lc3 <- de.plot %>%
   transform(Landcover = ifelse(Landcover == "Irrigated Ag",
                                "Irrigated agriculture", 
                                ifelse(Landcover == "Rx Dry Forest Burn 0-5",
-                                      "Dry Forest (Prescribed burn <6 yrs. ago)",
+                                      "Dry Forest (Prescribed burn 1-5 yrs. ago)",
                                       ifelse(Landcover == "Dry Forest Burn 0-5",
-                                             "Dry Forest (burn <6 y.a.)",
+                                             "Dry Forest (burn 1-5 y.a.)",
                                              ifelse(Landcover == "Dry Ag",
                                                     "Non-irrigated agriculture",
                                                     ifelse(Landcover == "Mesic Forest Burn 0-5",
-                                                           "Wet Forest (<6 yrs. ago)",
+                                                           "Wet Forest (burn 1-5 yrs. ago)",
                                                            ifelse(Landcover == "Mesic Forest Burn 6-15",
                                                                   "Wet Forest (burn 6-15 yrs. ago)",
                                                                   ifelse(Landcover == "Dry Forest Burn 6-15",
@@ -1147,7 +1164,13 @@ horizbw <- ggplot(data = de.lc3,
   labs(x = "Forage Quality (kcal/g)", y = "") 
 horizbw
 
-## EXPORT WITH CORRECT JWM SPECIFICATIONS ##
+ggsave("de-landcov-horiz-bw.jpg", 
+       plot = horizbw, 
+       device = "jpeg",
+       dpi = 300,
+       units = "mm",
+       width = wpg,
+       height = wcol)
 
 
 
