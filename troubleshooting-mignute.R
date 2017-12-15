@@ -388,6 +388,56 @@ par(mfrow=c(2,2))
 hist(m$VI95); hist(m$VI50); hist(m$Dist); hist(m$MigRank)
 sd(m$VI95)/mean(m$VI95)
 
+
+
+
+### ### ### ### ### ### ### ### ### ### ### ### 
+
+#### calculating effects sizes per landcover type (manu reviewer request) ####
+
+install.packages("canprot")
+library(canprot)
+
+lctypes <- data.frame(Landcover = unique(de.plot$Landcover))
+lctypes[2,1]
+clesdat <- matrix(nrow = nrow(lctypes), ncol = 1)
+clesdat <- list()
+clesdat[1] <- list(de.plot[de.plot$Landcover == "Irrigated Ag", 5])
+clesdat[2] <- list(de.plot[de.plot$Landcover == "Dry Forest (Burn >15)", 5])
+CLES(clesdat[1], clesdat[2])
+str(clesdat[1])
+test <- matrix(nrow=1, ncol = 2)
+test[1,1] <- de.plot[de.plot$Landcover == "Irrigated Ag", 5]
+test[1,2] <- de.plot[de.plot$Landcover == "Dry Forest (Burn >15)", 5]
+clesdat <- list()
+clesdat[[1]] <- de.plot[de.plot$Landcover == "Irrigated Ag", DE]
+clesdat[[2]] <- de.plot[de.plot$Landcover == "Dry Forest (Burn >15)", 5]
+clesdat2 <- c(de.plot[de.plot$Landcover == "Irrigated Ag", 5], de.plot[de.plot$Landcover == "Dry Forest (Burn >15)", 5])
+CLES(clesdat[[1]], clesdat[[2]])
+# duh
+rm(clesdat, clesdat2, test)
+
+
+lctypes <- data.frame(Landcover = unique(de.plot$Landcover))
+clesdat <- list()
+for (i in 1:nrow(lctypes)) {
+ lc <- lctypes[i,1] 
+ clesdat[[i]] <- de.plot[de.plot$Landcover == lc, 5]
+}
+
+es <- data.frame(Landcover = character(), CLES = numeric(), stringsAsFactors = F)
+for (i in 1:nrow(lctypes)) {
+ es[i,1] <- paste(lctypes[i,1])
+ es[i,2] <- CLES(clesdat[[i]], clesdat[[7]])
+}
+
+
+  # don't paste
+  lc[[1]]
+  es[1,1] <- "NA"
+  paste(lctypes[[3,1]])
+  CLES(clesdat[[1]], clesdat[[1]])
+  
 ########################################################################
 ########################################################################
 
